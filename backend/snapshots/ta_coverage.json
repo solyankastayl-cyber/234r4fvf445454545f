@@ -1,0 +1,107 @@
+{
+  "version": "ta_x_complete",
+  "indicators": {
+    "count": 15,
+    "core": [
+      "sma",
+      "ema",
+      "rsi",
+      "macd",
+      "bollinger",
+      "atr",
+      "vwap",
+      "supertrend",
+      "volume_profile"
+    ],
+    "phase_ta1": [
+      "cci",
+      "williams_r",
+      "ichimoku",
+      "parabolic_sar",
+      "donchian",
+      "keltner"
+    ]
+  },
+  "patterns": {
+    "count": 14,
+    "geometry": [
+      "triangle_symmetric",
+      "triangle_ascending",
+      "triangle_descending",
+      "channel_ascending",
+      "channel_descending",
+      "channel_horizontal"
+    ],
+    "breakout": [
+      "compression",
+      "breakout_bullish",
+      "breakout_bearish"
+    ],
+    "reversal": [
+      "head_shoulders",
+      "head_shoulders_inverse",
+      "double_top",
+      "double_bottom"
+    ],
+    "continuation": [
+      "wedge_rising",
+      "wedge_falling",
+      "cup_handle"
+    ],
+    "harmonic": [
+      "harmonic_gartley",
+      "harmonic_bat"
+    ]
+  },
+  "pipeline": {
+    "flow": "PatternService -> ChartObjectBuilder -> ChartComposer -> /chart/full-analysis",
+    "object_categories": [
+      "geometry",
+      "pattern",
+      "liquidity",
+      "hypothesis",
+      "fractal",
+      "indicator"
+    ]
+  },
+  "frontend": {
+    "theme": "light",
+    "chart_library": "lightweight-charts v5.1.0",
+    "entry_route": "/tech-analysis",
+    "entry_component": "TechAnalysisModule -> ChartLabView",
+    "design_system": "cockpit styled-components",
+    "colors": {
+      "background": "#ffffff",
+      "surface": "#f5f7fa",
+      "border": "#eef1f5",
+      "accent": "#05A584",
+      "text_primary": "#0f172a",
+      "text_secondary": "#738094",
+      "bullish": "#05A584",
+      "bearish": "#ef4444"
+    },
+    "layer_toggles": [
+      "indicators",
+      "patterns",
+      "levels",
+      "liquidity",
+      "hypothesis",
+      "fractals"
+    ],
+    "indicator_toggles": [
+      "EMA",
+      "SMA",
+      "RSI",
+      "MACD",
+      "Bollinger",
+      "VWAP",
+      "ATR",
+      "CCI",
+      "Williams%R",
+      "Ichimoku",
+      "PSAR",
+      "Donchian",
+      "Keltner"
+    ]
+  }
+}

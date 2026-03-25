@@ -1,0 +1,114 @@
+{
+  "version": "phase_ta_x",
+  "enabled": true,
+  "volatilityFilter": {
+    "enabled": true,
+    "atrMultiplier": 0.8,
+    "atrPeriod": 14,
+    "smaPeriod": 14
+  },
+  "trendAlignment": {
+    "enabled": true,
+    "emaShortPeriod": 50,
+    "emaLongPeriod": 200,
+    "requireBothAligned": false
+  },
+  "volumeBreakout": {
+    "enabled": true,
+    "volumeMultiplier": 1.4,
+    "smaPeriod": 20
+  },
+  "atrRiskManagement": {
+    "enabled": true,
+    "stopLossATR": 1.5,
+    "takeProfitATR": 2.5
+  },
+  "disabledStrategies": [
+    "LIQUIDITY_SWEEP",
+    "LIQUIDITY_SWEEP_HIGH",
+    "LIQUIDITY_SWEEP_LOW",
+    "RANGE_REVERSAL"
+  ],
+  "indicators": {
+    "total": 15,
+    "list": [
+      "sma",
+      "ema",
+      "rsi",
+      "macd",
+      "bollinger",
+      "atr",
+      "vwap",
+      "supertrend",
+      "volume_profile",
+      "cci",
+      "williams_r",
+      "ichimoku",
+      "parabolic_sar",
+      "donchian",
+      "keltner"
+    ]
+  },
+  "patterns": {
+    "total": 14,
+    "core": [
+      "triangle_symmetric",
+      "triangle_ascending",
+      "triangle_descending",
+      "channel_ascending",
+      "channel_descending",
+      "channel_horizontal",
+      "compression",
+      "breakout"
+    ],
+    "advanced": [
+      "head_shoulders",
+      "wedge_rising",
+      "wedge_falling",
+      "double_top",
+      "double_bottom",
+      "cup_handle"
+    ],
+    "harmonic": [
+      "harmonic_gartley",
+      "harmonic_bat"
+    ]
+  },
+  "suggested_indicators": {
+    "trending": [
+      "ema",
+      "supertrend",
+      "ichimoku",
+      "macd",
+      "parabolic_sar"
+    ],
+    "ranging": [
+      "bollinger",
+      "rsi",
+      "cci",
+      "williams_r",
+      "donchian"
+    ],
+    "volatile": [
+      "atr",
+      "keltner",
+      "bollinger",
+      "rsi",
+      "donchian"
+    ],
+    "compression": [
+      "bollinger",
+      "keltner",
+      "atr",
+      "rsi",
+      "macd"
+    ],
+    "default": [
+      "ema",
+      "bollinger",
+      "rsi",
+      "atr",
+      "ichimoku"
+    ]
+  }
+}
