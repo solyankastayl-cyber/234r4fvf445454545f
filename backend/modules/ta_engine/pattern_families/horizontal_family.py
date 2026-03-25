@@ -197,7 +197,7 @@ class HorizontalFamilyDetector:
             depth_score = min(depth / 0.05, 1.0)  # 5% depth = max score
             spacing_score = min(spacing / 20, 1.0)
             
-            confidence = (symmetry * 0.4 + depth_score * 0.35 + spacing_score * 0.25)
+            confidence = min(symmetry * 0.4 + depth_score * 0.35 + spacing_score * 0.25, 0.92)
             
             if confidence > best_confidence:
                 best_confidence = confidence
@@ -281,7 +281,7 @@ class HorizontalFamilyDetector:
             depth_score = min(depth / 0.05, 1.0)
             spacing_score = min(spacing / 20, 1.0)
             
-            confidence = (symmetry * 0.4 + depth_score * 0.35 + spacing_score * 0.25)
+            confidence = min(symmetry * 0.4 + depth_score * 0.35 + spacing_score * 0.25, 0.92)
             
             if confidence > best_confidence:
                 best_confidence = confidence
@@ -362,7 +362,7 @@ class HorizontalFamilyDetector:
             symmetry = 1 - max_diff / self.equal_threshold
             depth_score = min(depth / 0.05, 1.0)
             
-            confidence = (symmetry * 0.5 + depth_score * 0.3 + 0.2)  # Bonus for triple
+            confidence = min(symmetry * 0.5 + depth_score * 0.3 + 0.2, 0.92)  # Bonus for triple
             
             if confidence > best_confidence:
                 best_confidence = confidence
@@ -438,7 +438,7 @@ class HorizontalFamilyDetector:
             symmetry = 1 - max_diff / self.equal_threshold
             depth_score = min(depth / 0.05, 1.0)
             
-            confidence = (symmetry * 0.5 + depth_score * 0.3 + 0.2)
+            confidence = min(symmetry * 0.5 + depth_score * 0.3 + 0.2, 0.92)
             
             if confidence > best_confidence:
                 best_confidence = confidence
@@ -520,7 +520,7 @@ class HorizontalFamilyDetector:
         horizontal_score = 1 - (high_max_diff + low_max_diff) / (self.equal_threshold * 2)
         touch_score = min(total_touches / 8, 1.0)
         
-        confidence = (horizontal_score * 0.5 + touch_score * 0.5)
+        confidence = min(horizontal_score * 0.5 + touch_score * 0.5, 0.92)
         
         # Determine if it's a proper rectangle (more touches) or just range
         pattern_type = "rectangle" if total_touches >= 6 else "range"

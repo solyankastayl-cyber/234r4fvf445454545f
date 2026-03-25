@@ -62,9 +62,14 @@ class FamilyRanking:
     """
     Ranks and selects patterns from all families.
     
+    CRITICAL FIX:
+    - confidence = DOMINANCE over others, NOT pattern quality
+    - NEVER show 100% (max 0.92)
+    - Triangle = compression state, not directional signal
+    
     Config:
     - min_confidence: minimum confidence to be considered
-    - conflict_threshold: confidence difference to declare conflict
+    - conflict_threshold: score difference to declare conflict
     - max_alternatives: how many alternatives to return
     """
     
@@ -72,8 +77,10 @@ class FamilyRanking:
         config = config or {}
         
         self.min_confidence = config.get("min_confidence", 0.4)
-        self.conflict_threshold = config.get("conflict_threshold", 0.15)
+        self.conflict_score_diff = config.get("conflict_score_diff", 0.10)  # 10% difference
+        self.clear_score_diff = config.get("clear_score_diff", 0.25)        # 25% for CLEAR
         self.max_alternatives = config.get("max_alternatives", 2)
+        self.max_confidence = 0.92  # NEVER show 100%
     
     def rank(
         self,
@@ -82,12 +89,14 @@ class FamilyRanking:
         """
         Rank all pattern candidates.
         
+        CRITICAL: confidence = dominance strength, NOT pattern quality
+        
         Args:
             candidates: List of pattern dicts, each must have:
                 - type: pattern name
                 - family: family name
                 - bias: bullish/bearish/neutral
-                - confidence: 0-1
+                - confidence: 0-1 (pattern quality)
         
         Returns:
             RankingResult with dominant, alternatives, rejected
@@ -125,22 +134,35 @@ class FamilyRanking:
                 tradeable=False,
             )
         
-        # Sort by confidence
+        # Sort by confidence (pattern quality)
         valid.sort(key=lambda x: x.get("confidence", 0), reverse=True)
         
-        # Check for conflicts
-        conflict = self._detect_conflict(valid)
+        # CRITICAL: Calculate REAL confidence (dominance over others)
+        real_confidences = self._compute_dominance_confidence(valid)
         
-        # Build ranked patterns
+        # Check for conflicts
+        conflict = self._detect_conflict_v2(valid, real_confidences)
+        
+        # Determine confidence state
+        confidence_state = self._compute_confidence_state(valid, real_confidences, conflict)
+        
+        # Build ranked patterns with REAL confidence
         ranked = []
         for i, c in enumerate(valid):
+            # Clamp confidence - NEVER 100%
+            real_conf = min(real_confidences[i], self.max_confidence)
+            
             ranked.append(RankedPattern(
                 type=c.get("type"),
                 family=PatternFamily(c.get("family", "horizontal")),
                 bias=PatternBias(c.get("bias", "neutral")),
-                confidence=c.get("confidence", 0),
+                confidence=real_conf,  # Use REAL confidence, not pattern quality
                 rank=i + 1,
-                pattern_data=c,
+                pattern_data={
+                    **c,
+                    "pattern_quality": c.get("confidence", 0),  # Original
+                    "dominance_confidence": real_conf,          # Real
+                },
             ))
         
         # Dominant is first (highest confidence)
@@ -149,8 +171,8 @@ class FamilyRanking:
         # Alternatives are next N
         alternatives = ranked[1:self.max_alternatives + 1] if len(ranked) > 1 else []
         
-        # Tradeable if no conflict or dominant is clearly stronger
-        tradeable = self._is_tradeable(dominant, alternatives, conflict)
+        # Tradeable only if CLEAR and directional
+        tradeable = self._is_tradeable_v2(dominant, alternatives, conflict, confidence_state)
         
         return RankingResult(
             dominant=dominant,
@@ -160,32 +182,129 @@ class FamilyRanking:
             tradeable=tradeable,
         )
     
-    def _detect_conflict(self, patterns: List[Dict]) -> Optional[str]:
-        """Detect if there's a bullish/bearish conflict."""
+    def _compute_dominance_confidence(self, patterns: List[Dict]) -> List[float]:
+        """
+        Compute REAL confidence = dominance over other patterns.
+        
+        NOT pattern quality, but how much stronger than competition.
+        """
+        if len(patterns) == 0:
+            return []
+        
+        if len(patterns) == 1:
+            # Single pattern - moderate confidence
+            return [0.7]
+        
+        confidences = []
+        scores = [p.get("confidence", 0) for p in patterns]
+        top_score = scores[0]
+        
+        for i, score in enumerate(scores):
+            if i == 0:
+                # Dominant: confidence based on gap to second
+                second_score = scores[1] if len(scores) > 1 else 0
+                gap = top_score - second_score
+                
+                # Normalize gap: 0.3 gap = 0.9 confidence, 0 gap = 0.3 confidence
+                dominance = 0.3 + (gap * 2.0)  # Scale gap
+                dominance = min(max(dominance, 0.2), self.max_confidence)
+                confidences.append(dominance)
+            else:
+                # Alternatives: proportional to how close to dominant
+                ratio = score / top_score if top_score > 0 else 0
+                alt_confidence = ratio * 0.7  # Max 70% for alternatives
+                confidences.append(min(alt_confidence, 0.7))
+        
+        return confidences
+    
+    def _detect_conflict_v2(
+        self, 
+        patterns: List[Dict],
+        real_confidences: List[float]
+    ) -> Optional[str]:
+        """
+        Detect if there's a bullish/bearish conflict.
+        
+        CRITICAL: Small gap between top patterns = CONFLICTED
+        """
         if len(patterns) < 2:
             return None
         
-        top_two = patterns[:2]
-        bias1 = top_two[0].get("bias", "neutral")
-        bias2 = top_two[1].get("bias", "neutral")
+        top = patterns[0]
+        second = patterns[1]
         
-        # Both neutral = no conflict
-        if bias1 == "neutral" or bias2 == "neutral":
-            return None
+        bias1 = top.get("bias", "neutral")
+        bias2 = second.get("bias", "neutral")
         
-        # Same bias = no conflict
-        if bias1 == bias2:
-            return None
+        score1 = top.get("confidence", 0)
+        score2 = second.get("confidence", 0)
+        gap = score1 - score2
         
-        # Different biases
-        conf1 = top_two[0].get("confidence", 0)
-        conf2 = top_two[1].get("confidence", 0)
+        # Case 1: Both high confidence, different biases
+        if bias1 != "neutral" and bias2 != "neutral" and bias1 != bias2:
+            if gap < self.clear_score_diff:
+                return f"directional_conflict: {top.get('type')} ({bias1}) vs {second.get('type')} ({bias2}), gap={gap:.2f}"
         
-        # If confidence difference is small, it's a conflict
-        if conf1 - conf2 < self.conflict_threshold:
-            return f"bullish_bearish_conflict: {top_two[0].get('type')} ({bias1}) vs {top_two[1].get('type')} ({bias2})"
+        # Case 2: Dominant is neutral (compression) but has directional rivals
+        if bias1 == "neutral" and bias2 != "neutral":
+            # Triangle vs Double Bottom/Top = conflicted
+            if gap < self.clear_score_diff:
+                return f"neutral_vs_directional: {top.get('type')} (wait) vs {second.get('type')} ({bias2})"
+        
+        # Case 3: Very close scores regardless of bias
+        if gap < self.conflict_score_diff:
+            return f"close_competition: {top.get('type')} vs {second.get('type')}, gap={gap:.2f}"
         
         return None
+    
+    def _compute_confidence_state(
+        self,
+        patterns: List[Dict],
+        real_confidences: List[float],
+        conflict: Optional[str]
+    ) -> str:
+        """
+        Compute overall confidence state.
+        
+        CLEAR: Strong dominance, no conflict, directional
+        WEAK: Pattern found but low dominance
+        CONFLICTED: Multiple competing signals
+        COMPRESSION: Dominant is neutral (triangle/range)
+        NONE: No valid pattern
+        """
+        if not patterns:
+            return "NONE"
+        
+        if conflict:
+            return "CONFLICTED"
+        
+        top = patterns[0]
+        top_conf = real_confidences[0] if real_confidences else 0
+        bias = top.get("bias", "neutral")
+        
+        # Neutral patterns (triangle, range) = COMPRESSION state
+        if bias == "neutral":
+            return "COMPRESSION"
+        
+        # Check dominance
+        if len(patterns) >= 2:
+            gap = patterns[0].get("confidence", 0) - patterns[1].get("confidence", 0)
+            if gap >= self.clear_score_diff and top_conf >= 0.6:
+                return "CLEAR"
+            elif gap >= self.conflict_score_diff:
+                return "WEAK"
+            else:
+                return "CONFLICTED"
+        
+        # Single pattern
+        if top_conf >= 0.6:
+            return "CLEAR"
+        
+        return "WEAK"
+    
+    def _detect_conflict(self, patterns: List[Dict]) -> Optional[str]:
+        """DEPRECATED - use _detect_conflict_v2"""
+        return self._detect_conflict_v2(patterns, [p.get("confidence", 0) for p in patterns])
     
     def _is_tradeable(
         self,
@@ -193,7 +312,25 @@ class FamilyRanking:
         alternatives: List[RankedPattern],
         conflict: Optional[str]
     ) -> bool:
-        """Determine if the pattern setup is tradeable."""
+        """DEPRECATED - use _is_tradeable_v2"""
+        return self._is_tradeable_v2(dominant, alternatives, conflict, "WEAK")
+    
+    def _is_tradeable_v2(
+        self,
+        dominant: Optional[RankedPattern],
+        alternatives: List[RankedPattern],
+        conflict: Optional[str],
+        confidence_state: str
+    ) -> bool:
+        """
+        Determine if the pattern setup is tradeable.
+        
+        CRITICAL RULES:
+        - CONFLICTED = NOT tradeable
+        - COMPRESSION (triangle/range) = NOT immediately tradeable (wait for breakout)
+        - WEAK = tradeable with reduced size
+        - CLEAR = fully tradeable
+        """
         if not dominant:
             return False
         
@@ -201,13 +338,23 @@ class FamilyRanking:
         if conflict:
             return False
         
-        # Neutral bias with no directional alternative = not immediately tradeable
-        if dominant.bias == PatternBias.NEUTRAL:
-            # But if it's a breakout pattern (triangle, range), it could be tradeable at breakout
-            return dominant.confidence >= 0.6
+        # COMPRESSION state (neutral patterns) = not immediately tradeable
+        if confidence_state == "COMPRESSION":
+            return False  # Wait for breakout
         
-        # Clear directional bias with good confidence = tradeable
-        return dominant.confidence >= self.min_confidence
+        # CONFLICTED = not tradeable
+        if confidence_state == "CONFLICTED":
+            return False
+        
+        # CLEAR with good confidence = tradeable
+        if confidence_state == "CLEAR" and dominant.confidence >= 0.5:
+            return True
+        
+        # WEAK can be tradeable with good confidence
+        if confidence_state == "WEAK" and dominant.confidence >= 0.6:
+            return True
+        
+        return False
 
 
 # Singleton

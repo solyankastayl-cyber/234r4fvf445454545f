@@ -227,7 +227,8 @@ class ConvergingFamilyDetector:
             0.15  # Base
         )
         
-        confidence = min(confidence, 1.0)
+        # CRITICAL: NEVER 100% confidence - max 0.92
+        confidence = min(confidence, 0.92)
         
         # Calculate apex
         apex_price = None

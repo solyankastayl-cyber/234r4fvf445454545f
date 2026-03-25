@@ -23,6 +23,7 @@ from .geometry_engine import GeometryEngine, get_geometry_engine
 from .family_classifier import FamilyClassifier, ClassificationResult, get_family_classifier
 from .family_ranking import FamilyRanking, RankingResult, get_family_ranking
 from .pattern_family_matrix import PatternFamily
+from .pattern_regime_binding import PatternRegimeBinder, get_pattern_regime_binder, RegimeContext
 
 # Import family detectors
 from .horizontal_family import HorizontalFamilyDetector, get_horizontal_family_detector
@@ -39,7 +40,9 @@ class DetectionResult:
     ranking: Dict
     swings: Dict
     tradeable: bool
-    confidence_state: str  # CLEAR / WEAK / CONFLICTED / NONE
+    confidence_state: str  # CLEAR / WEAK / CONFLICTED / COMPRESSION / NONE
+    regime_context: Optional[Dict]  # Market regime info
+    actionability: str     # HIGH / MEDIUM / LOW / NONE
     
     def to_dict(self) -> Dict:
         return {
@@ -51,6 +54,8 @@ class DetectionResult:
             "swings": self.swings,
             "tradeable": self.tradeable,
             "confidence_state": self.confidence_state,
+            "regime_context": self.regime_context,
+            "actionability": self.actionability,
         }
 
 
@@ -61,6 +66,12 @@ class UnifiedPatternDetectorV2:
     This replaces the old approach of running 100 detectors
     and falling back to loose_range.
     
+    CRITICAL FIXES:
+    - confidence = dominance, NOT pattern quality
+    - NEVER 100% confidence
+    - Regime binding for context
+    - Triangle = compression, not signal
+    
     Config:
     - run_all_families: True to run all families, False to run only classified
     - min_confidence: minimum to consider valid
@@ -69,22 +80,22 @@ class UnifiedPatternDetectorV2:
     def __init__(self, config: Dict = None):
         config = config or {}
         
-        self.run_all_families = config.get("run_all_families", True)  # Default: run all
+        self.run_all_families = config.get("run_all_families", True)
         self.min_confidence = config.get("min_confidence", 0.4)
         
         # Engines
         self.swing_engine = get_swing_engine(config.get("swing_config"))
         self.classifier = get_family_classifier(config)
         self.ranking = get_family_ranking(config)
+        self.regime_binder = get_pattern_regime_binder(config)
         
         # Family detectors
         self.horizontal_detector = get_horizontal_family_detector(config.get("horizontal_config"))
         self.converging_detector = get_converging_family_detector(config.get("converging_config"))
-        # TODO: Add parallel_detector, swing_composite_detector, regime_detector
     
-    def detect(self, candles: List[Dict]) -> DetectionResult:
+    def detect(self, candles: List[Dict], structure: Dict = None, impulse: Dict = None) -> DetectionResult:
         """
-        Detect patterns using family architecture.
+        Detect patterns using family architecture with regime binding.
         
         Returns:
             DetectionResult with dominant pattern (or None)
@@ -105,41 +116,48 @@ class UnifiedPatternDetectorV2:
         if len(swing_highs) < 2 or len(swing_lows) < 2:
             return self._empty_result("insufficient_swings", swings=swings_info)
         
-        # 2. CLASSIFY INTO FAMILY
+        # 2. DETECT REGIME CONTEXT
+        regime_context = self.regime_binder.detect_regime(structure, impulse, candles)
+        
+        # 3. CLASSIFY INTO FAMILY
         classification = self.classifier.classify(candles, swing_highs, swing_lows)
         
-        # 3. RUN FAMILY DETECTORS
+        # 4. RUN FAMILY DETECTORS
         all_candidates = []
         
         if self.run_all_families:
-            # Run all detectors
             all_candidates.extend(self._run_horizontal(candles, swing_highs, swing_lows))
             all_candidates.extend(self._run_converging(candles, swing_highs, swing_lows))
-            # TODO: Add other families
         else:
-            # Run only classified family
             if classification.primary_family:
-                family_candidates = self._run_family(
-                    classification.primary_family,
-                    candles, swing_highs, swing_lows
-                )
-                all_candidates.extend(family_candidates)
-                
-                # Also run secondary if exists
+                all_candidates.extend(self._run_family(
+                    classification.primary_family, candles, swing_highs, swing_lows
+                ))
                 if classification.secondary_family:
-                    secondary_candidates = self._run_family(
-                        classification.secondary_family,
-                        candles, swing_highs, swing_lows
-                    )
-                    all_candidates.extend(secondary_candidates)
+                    all_candidates.extend(self._run_family(
+                        classification.secondary_family, candles, swing_highs, swing_lows
+                    ))
         
-        # 4. RANK CANDIDATES
-        ranking_result = self.ranking.rank(all_candidates)
+        # 5. APPLY REGIME BINDING
+        bound_patterns = self.regime_binder.bind_all(all_candidates, regime_context)
         
-        # 5. DETERMINE CONFIDENCE STATE
+        # Convert back to dicts with regime info
+        bound_candidates = [bp.to_dict() for bp in bound_patterns]
+        
+        # 6. RANK CANDIDATES (with real confidence)
+        ranking_result = self.ranking.rank(bound_candidates)
+        
+        # 7. DETERMINE CONFIDENCE STATE
         confidence_state = self._determine_confidence_state(ranking_result)
         
-        # 6. BUILD RESULT
+        # 8. GET ACTIONABILITY
+        actionability = "NONE"
+        if ranking_result.dominant:
+            dom_data = ranking_result.dominant.pattern_data
+            regime_binding = dom_data.get("regime_binding", {})
+            actionability = regime_binding.get("actionability", "low").upper()
+        
+        # 9. BUILD RESULT
         dominant = None
         if ranking_result.dominant:
             dominant = ranking_result.dominant.to_dict()
@@ -155,6 +173,8 @@ class UnifiedPatternDetectorV2:
             swings=swings_info,
             tradeable=ranking_result.tradeable,
             confidence_state=confidence_state,
+            regime_context=regime_context.to_dict(),
+            actionability=actionability,
         )
     
     def _run_family(
@@ -196,9 +216,10 @@ class UnifiedPatternDetectorV2:
         """
         Determine overall confidence state.
         
-        CLEAR: Strong dominant pattern, no conflict, tradeable
-        WEAK: Pattern found but low confidence
-        CONFLICTED: Bullish/bearish conflict
+        CLEAR: Strong dominant pattern, no conflict, tradeable, directional
+        WEAK: Pattern found but low confidence/dominance
+        CONFLICTED: Bullish/bearish conflict or close competition
+        COMPRESSION: Dominant is neutral (triangle/range) - wait for breakout
         NONE: No valid pattern
         """
         if not ranking.dominant:
@@ -207,10 +228,21 @@ class UnifiedPatternDetectorV2:
         if ranking.conflict:
             return "CONFLICTED"
         
-        if ranking.dominant.confidence >= 0.6 and ranking.tradeable:
+        # Check pattern type - neutral patterns = COMPRESSION
+        dom_bias = ranking.dominant.bias
+        if dom_bias == PatternBias.NEUTRAL:
+            return "COMPRESSION"
+        
+        # Check dominance strength
+        dom_conf = ranking.dominant.confidence
+        
+        if dom_conf >= 0.6 and ranking.tradeable:
             return "CLEAR"
         
-        return "WEAK"
+        if dom_conf >= 0.4:
+            return "WEAK"
+        
+        return "CONFLICTED"
     
     def _empty_result(
         self,
@@ -227,6 +259,8 @@ class UnifiedPatternDetectorV2:
             swings=swings or {},
             tradeable=False,
             confidence_state="NONE",
+            regime_context=None,
+            actionability="NONE",
         )
 
 
