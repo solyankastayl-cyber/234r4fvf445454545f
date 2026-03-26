@@ -23,7 +23,7 @@
 └── unified_detector.py          # Main entry point
 ```
 
-### Key Fixes Implemented
+### Key Design Principles
 
 1. **Confidence = Dominance** (not pattern quality)
    - Never 100% (max 92%)
@@ -38,18 +38,19 @@
 
 3. **Regime Binding**
    - Pattern meaning changes by context
-   - Triangle in trend ≠ triangle in chop
+   - Triangle in trend != triangle in chop
    - Actionability: HIGH/MEDIUM/LOW
 
 4. **Trigger Engine**
    - What to WAIT for
-   - ▲ Bullish triggers
-   - ▼ Bearish triggers  
-   - ✗ Invalidation levels
+   - Bullish triggers (breakout levels)
+   - Bearish triggers (breakdown levels)
+   - Invalidation levels
 
 5. **Unified Render Contract**
    - One format for ALL patterns
-   - Frontend just does: switch(type) → draw()
+   - Frontend just does: switch(render_mode) -> draw()
+   - Modes: two_lines, polyline, box, hs
 
 ### API Endpoint
 
@@ -65,49 +66,69 @@ Returns:
 - render_contract
 - regime_context
 
-## What's Been Implemented (2026-03-26)
+## What's Been Implemented
 
-### Backend
-- ✅ Pattern Families architecture (6 families, 20+ patterns)
-- ✅ Swing Engine (universal pivot detection)
-- ✅ Geometry Engine (unified geometric rules)
-- ✅ Real confidence calculation (dominance-based)
-- ✅ Regime binding (context-aware scoring)
-- ✅ Trigger Engine (wait conditions)
-- ✅ Unified Render Contract
-- ✅ New API endpoint `/api/ta-engine/pattern-v2/{symbol}`
+### Backend (DONE)
+- Pattern Families architecture (6 families, 20+ patterns)
+- Swing Engine (universal pivot detection)
+- Geometry Engine (unified geometric rules)
+- Real confidence calculation (dominance-based)
+- Regime binding (context-aware scoring)
+- Trigger Engine (wait conditions)
+- Unified Render Contract
+- API endpoint `/api/ta-engine/pattern-v2/{symbol}`
 
-### Frontend
-- ✅ PatternSVGOverlay updated with unified render functions
-- ✅ Support for: box, polyline, two_lines, hs render modes
+### Frontend V2 Integration (DONE - 2026-03-26)
+- `usePatternV2` hook fetches V2 API data
+- `patternRenderAdapter` normalizes backend response
+- `PatternStateCard` renders decision-grade info below chart:
+  - Pattern type + direction + state badge (CONFLICTED/CLEAR/COMPRESSION/WEAK)
+  - Confidence, actionability, tradeable status
+  - Wait Conditions: breakout/breakdown/invalidation trigger levels
+  - Alternatives + regime context
+- `PatternSVGOverlay` renders:
+  - Pattern geometry (two_lines, polyline, box, hs modes)
+  - Trigger lines (green breakout, red breakdown, orange invalidation)
+- V2 render_contract passed to chart via data prop
+- Legacy PatternOverlay hidden when V2 active
+- Verified: BTC (Triple Top, CONFLICTED), ETH (Symmetrical Triangle, CONFLICTED)
 
 ## Testing Results
 
-| Asset | Pattern | Confidence | State | Tradeable |
-|-------|---------|------------|-------|-----------|
-| ETH | symmetrical_triangle | 0.92 | CONFLICTED | No |
-| BTC | triple_top | 0.79 | CONFLICTED | No |
+| Asset | Pattern | Confidence | State | Tradeable | Render Mode |
+|-------|---------|------------|-------|-----------|-------------|
+| ETH | symmetrical_triangle | 0.92 | CONFLICTED | No | two_lines |
+| BTC | triple_top | 0.79 | CONFLICTED | No | polyline |
 
 ## Prioritized Backlog
 
-### P0 (Critical - Done)
-- ✅ Fix confidence calculation
-- ✅ Regime binding
-- ✅ Trigger engine
-- ✅ Unified render contract
+### P0 (Critical - DONE)
+- [x] Fix confidence calculation
+- [x] Regime binding
+- [x] Trigger engine
+- [x] Unified render contract
+- [x] Wire pattern-v2 to frontend (chart + triggers + state)
 
-### P1 (Important)
-- [ ] Integrate render_contract into existing frontend flow
+### P1 (Important - Next)
 - [ ] Add parallel_family (channels, flags)
 - [ ] Add swing_composite_family (H&S patterns)
-- [ ] MTF Trigger Alignment
+- [ ] MTF Trigger Alignment (4H + 1D alignment)
 
-### P2 (Nice to Have)
-- [ ] Entry Engine (only when CLEAR)
+### P2 (Nice to Have - Future)
+- [ ] Trade Setup Generator (Entry, Stop, Targets, R:R) — only after V2 visual confirmed
 - [ ] Execution Layer
 - [ ] Backtesting integration
 
-## Next Tasks
-1. Wire new pattern-v2 API to ResearchViewNew.jsx
-2. Test visual rendering on chart
-3. Add remaining pattern families
+## Files of Reference
+
+### Backend
+- `/app/backend/modules/ta_engine/pattern_families/*` — V2 intelligence
+- `/app/backend/modules/ta_engine/ta_routes.py` — API endpoints
+
+### Frontend
+- `/app/frontend/src/modules/ta/patterns/usePatternV2.js` — Data hook
+- `/app/frontend/src/modules/ta/patterns/patternRenderAdapter.js` — Normalizer
+- `/app/frontend/src/modules/ta/patterns/PatternStateCard.jsx` — UI card
+- `/app/frontend/src/modules/cockpit/views/ResearchViewNew.jsx` — Main view
+- `/app/frontend/src/modules/cockpit/components/PatternSVGOverlay.jsx` — Chart overlay
+- `/app/frontend/src/modules/cockpit/components/ResearchChart.jsx` — Chart component
