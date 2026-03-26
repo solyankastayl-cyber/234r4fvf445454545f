@@ -1,29 +1,46 @@
 #!/usr/bin/env python3
 """
-TA Engine Bootstrap System v6 — Pattern Families Architecture
-==============================================================
+TA Engine Bootstrap System v7 — Pattern Families Architecture (Full Coverage)
+==============================================================================
 
-CURRENT ARCHITECTURE (V2 Pattern Families):
+CURRENT ARCHITECTURE (V2 Pattern Families + Visual Mode):
 
 PATTERN FAMILIES ENGINE:
 - Unified detection via family architecture (NOT 100 separate detectors)
-- Pipeline: Swings → Family Classifier → Family Detector → Ranking → Render Contract
+- Pipeline: Swings → FamilyClassifier → FamilyDetectors → WindowValidation → Ranking → VisualMode → RenderContract
 - Core modules:
-  * swing_engine.py        — universal swing high/low detection
-  * geometry_engine.py     — unified geometric primitives
-  * horizontal_family.py   — double/triple top/bottom, range, rectangle
-  * converging_family.py   — triangles, wedges
-  * family_classifier.py   — routes candles to correct family
-  * family_ranking.py      — ranks candidates, computes REAL confidence
-  * pattern_regime_binding  — context: pattern + market regime
-  * trigger_engine.py      — what to WAIT for (breakout/breakdown levels)
-  * pattern_render_builder  — unified SVG render contract for frontend
-  * unified_detector.py    — single entry point
+  * swing_engine.py              — universal swing high/low detection
+  * geometry_engine.py           — unified geometric primitives
+  * pattern_window_validator.py  — validates pattern is real, not noise
+  * visual_mode_resolver.py      — controls what frontend can render (NO mixing)
+  * horizontal_family.py         — double/triple top/bottom, range, rectangle (6 patterns)
+  * converging_family.py         — triangles, wedges (5 patterns)
+  * parallel_family.py           — channels, flags, pennants (6 patterns)
+  * family_classifier.py         — routes candles to correct family
+  * family_ranking.py            — ranks candidates, computes REAL confidence
+  * pattern_regime_binding.py    — context: pattern + market regime
+  * trigger_engine.py            — what to WAIT for (breakout/breakdown levels)
+  * pattern_render_builder.py    — unified SVG render contract for frontend
+  * unified_detector.py          — single entry point (runs ALL 3 families)
+
+PATTERN COVERAGE (17 patterns ready):
+- HORIZONTAL (6):  double_top, double_bottom, triple_top, triple_bottom, range, rectangle
+- CONVERGING (5):  symmetrical_triangle, ascending_triangle, descending_triangle, rising_wedge, falling_wedge
+- PARALLEL (6):    ascending_channel, descending_channel, horizontal_channel, bull_flag, bear_flag, pennant
+
+VISUAL MODE RESOLVER (render isolation):
+- range_only:         box + R/S + triggers (NO swings, NO polyline)
+- horizontal_pattern: polyline + neckline (NO range, NO swings)
+- compression_pattern: trendlines only (NO range, NO swings)
+- structure_only:     HH/HL/LL only (NO patterns)
+- none:               clean chart
 
 KEY PRINCIPLES:
 - Confidence = Dominance (gap between #1 and #2 pattern), NOT geometric quality
 - Max confidence 0.92, never 100%
 - States: CLEAR / WEAK / CONFLICTED / COMPRESSION / NONE
+- Window Validation: rejects patterns that are noise or too wide
+- Visual Mode: 1 screen = 1 idea (NO mixing range + pattern + structure)
 - Regime Binding: triangle in trend ≠ triangle in chop
 - Trigger Engine: what must happen for pattern to become valid
 - Render Contract: one format for ALL patterns (frontend just renders)
@@ -31,7 +48,7 @@ KEY PRINCIPLES:
 FRONTEND V2:
 - usePatternV2 hook → fetches /api/ta-engine/pattern-v2/{symbol}
 - PatternStateCard → decision-grade UI (state + triggers + action)
-- PatternSVGOverlay → renders geometry + trigger lines on chart
+- PatternSVGOverlay → renders based on visual_mode (no mixing)
 - Shows 1 dominant pattern only, no clutter
 
 KEY ENDPOINTS:
@@ -337,7 +354,7 @@ EXCHANGE_INTEL_CONFIG = {
 # ═══════════════════════════════════════════════════════════════
 
 TA_COVERAGE = {
-    "version": "pattern_families_v2",
+    "version": "pattern_families_v7",
     "indicators": {
         "count": 15,
         "core": ["sma", "ema", "rsi", "macd", "bollinger", "atr", "vwap", "supertrend", "volume_profile"],
@@ -345,42 +362,79 @@ TA_COVERAGE = {
     },
     "pattern_families_v2": {
         "architecture": "unified_family_detector",
-        "pipeline": "Swings → FamilyClassifier → FamilyDetector → Ranking → RegimeBinding → Triggers → RenderContract",
+        "pipeline": "Swings → FamilyClassifier → FamilyDetectors(3) → WindowValidator → Ranking → VisualMode → Triggers → RenderContract",
+        "total_patterns_ready": 17,
         "modules": {
             "swing_engine": "Universal swing high/low detection from OHLCV",
             "geometry_engine": "Unified geometric primitives (line slopes, touches, angles)",
+            "pattern_window_validator": "Rejects noise/invalid patterns (window too wide, no pretrend, etc)",
+            "visual_mode_resolver": "Controls what frontend can render - NO MIXING",
             "family_classifier": "Routes candle data to correct family detector",
             "family_ranking": "Ranks all candidates, computes dominance-based confidence",
             "pattern_regime_binding": "Contextual meaning: same pattern ≠ same action in different regimes",
             "trigger_engine": "Calculates breakout/breakdown/invalidation levels",
             "pattern_render_builder": "Builds unified SVG render contract for frontend",
-            "unified_detector": "Single entry point: detect_patterns_v2(candles)",
+            "unified_detector": "Single entry point: detect_patterns_v2(candles) — runs ALL 3 families",
         },
         "families_implemented": {
             "horizontal": {
                 "module": "horizontal_family.py",
                 "patterns": ["double_top", "double_bottom", "triple_top", "triple_bottom", "range", "rectangle"],
+                "count": 6,
                 "render_mode": "polyline | box",
+                "visual_mode": "horizontal_pattern | range_only",
                 "status": "DONE",
             },
             "converging": {
                 "module": "converging_family.py",
                 "patterns": ["symmetrical_triangle", "ascending_triangle", "descending_triangle", "rising_wedge", "falling_wedge"],
+                "count": 5,
                 "render_mode": "two_lines",
+                "visual_mode": "compression_pattern",
                 "status": "DONE",
             },
             "parallel": {
-                "module": "parallel_family.py (pending)",
-                "patterns": ["ascending_channel", "descending_channel", "horizontal_channel", "bull_flag", "bear_flag"],
+                "module": "parallel_family.py",
+                "patterns": ["ascending_channel", "descending_channel", "horizontal_channel", "bull_flag", "bear_flag", "pennant"],
+                "count": 6,
                 "render_mode": "two_lines",
-                "status": "P1",
+                "visual_mode": "compression_pattern",
+                "status": "DONE",
             },
             "swing_composite": {
                 "module": "swing_composite_family.py (pending)",
-                "patterns": ["head_shoulders", "inverse_head_shoulders"],
-                "render_mode": "hs",
-                "status": "P1",
+                "patterns": ["head_shoulders", "inverse_head_shoulders", "complex_top", "complex_bottom", "rounded_top", "rounded_bottom"],
+                "count": 0,
+                "render_mode": "hs | polyline",
+                "visual_mode": "swing_pattern",
+                "status": "P1_NEXT",
             },
+            "regime": {
+                "module": "regime_family.py (pending)",
+                "patterns": ["squeeze", "balance", "expansion", "volatility_contraction"],
+                "count": 0,
+                "status": "P2",
+            },
+        },
+        "visual_modes": {
+            "range_only": "box + R/S + triggers (NO swings, NO polyline)",
+            "horizontal_pattern": "polyline + neckline (NO range, NO swings)",
+            "compression_pattern": "trendlines only (NO range, NO swings)",
+            "swing_pattern": "H&S polyline + shoulders (NO range)",
+            "structure_only": "HH/HL/LL only (NO patterns)",
+            "none": "clean chart",
+        },
+        "window_validator": {
+            "enabled": True,
+            "principle": "Better to show NO PATTERN than garbage",
+            "checks": [
+                "window_size (max 40 bars for 4H)",
+                "peak_alignment (±3.5% for triple, ±2.5% for double)",
+                "pre_trend (uptrend before top, downtrend before bottom)",
+                "depth_check (min 2% depth)",
+                "range_conflict (penalize if inside range)",
+                "structural_integrity (correct # of swings)",
+            ],
         },
         "confidence_model": {
             "type": "dominance_based",
@@ -417,16 +471,22 @@ TA_COVERAGE = {
         "health": "GET /api/health",
     },
     "frontend_v2": {
-        "theme": "light",
+        "theme": "light + dark panels",
         "chart_library": "lightweight-charts v5.1.0",
         "entry_route": "/tech-analysis",
         "components": {
             "usePatternV2": "Hook → fetches /api/ta-engine/pattern-v2/{symbol}",
             "patternRenderAdapter": "Normalizes backend V2 response for frontend",
-            "PatternStateCard": "Decision-grade UI: state + triggers + actionability",
-            "PatternSVGOverlay": "Renders geometry (two_lines, polyline, box, hs) + trigger lines",
+            "PatternStateCard": "Decision-grade UI: state + triggers + actionability (WHITE background)",
+            "PatternSVGOverlay": "Renders based on visual_mode — NO MIXING allowed",
         },
+        "visual_mode_principle": "Frontend OBEYS visual_mode from backend. 1 mode = 1 visual. NO mixing.",
         "design_principle": "1 screen = 1 dominant pattern + its triggers + its state. No clutter.",
+        "design_colors": {
+            "light_blocks": "#ffffff",
+            "dark_blocks": "#0f172a",
+            "NO_gray_blocks": "REMOVED — was causing visual chaos",
+        },
         "colors": {
             "background": "#ffffff",
             "surface": "#f5f7fa",
@@ -1220,52 +1280,64 @@ class Bootstrap:
                 r = requests.get("http://localhost:8001/api/health", timeout=5)
                 print(f"  Health (localhost): {r.status_code}")
                 api_base = "http://localhost:8001"
-            except:
+            except Exception:
                 print("  Backend not reachable")
                 return
         
         # 3. Test pattern-v2 endpoint for BTC and ETH
         print("\n[3] Pattern V2 API...")
-        for symbol in ["BTC", "ETH"]:
+        for symbol in ["BTC", "ETH", "SOL"]:
             try:
                 url = f"{api_base}/api/ta-engine/pattern-v2/{symbol}?timeframe=4H"
                 r = requests.get(url, timeout=30)
                 data = r.json()
                 
                 if data.get("ok"):
-                    dominant = data.get("dominant", {})
+                    dominant = data.get("dominant", {}) or {}
                     state = data.get("confidence_state", "?")
                     tradeable = data.get("tradeable", "?")
-                    render_mode = data.get("render_contract", {}).get("render_mode", "?")
-                    triggers = data.get("triggers", {})
-                    n_triggers = triggers.get("total_triggers", 0) if triggers else 0
+                    visual_mode = data.get("visual_mode", {}) or {}
+                    mode = visual_mode.get("mode", "?")
+                    allowed = visual_mode.get("allowed", [])
                     
-                    print(f"  {symbol}: {dominant.get('type', '?')} | "
-                          f"conf={dominant.get('confidence', 0):.2f} | "
-                          f"state={state} | "
-                          f"tradeable={tradeable} | "
-                          f"render={render_mode} | "
-                          f"triggers={n_triggers}")
+                    print(f"  {symbol}:")
+                    print(f"    Pattern:  {dominant.get('type', 'NONE')} | family={dominant.get('family', '?')}")
+                    print(f"    Conf:     {dominant.get('confidence', 0)*100:.0f}% | state={state} | tradeable={tradeable}")
+                    print(f"    Visual:   mode={mode} | allowed={allowed}")
                 else:
                     print(f"  {symbol}: FAIL — {data.get('error', 'unknown')}")
             except Exception as e:
                 print(f"  {symbol}: ERROR — {e}")
         
         # 4. Show Pattern Families architecture summary
-        print("\n[4] Pattern Families V2 Architecture...")
+        print("\n[4] Pattern Coverage (17 patterns in 3 families)...")
         families = TA_COVERAGE.get("pattern_families_v2", {}).get("families_implemented", {})
+        total = 0
         for fam_name, fam_info in families.items():
             status = fam_info.get("status", "?")
-            patterns = fam_info.get("patterns", [])
-            icon = "+" if status == "DONE" else "~"
-            print(f"  [{icon}] {fam_name}: {len(patterns)} patterns [{status}]")
+            count = fam_info.get("count", len(fam_info.get("patterns", [])))
+            patterns = fam_info.get("patterns", [])[:3]  # First 3 for display
+            icon = "✅" if status == "DONE" else "⏳"
+            total += count if status == "DONE" else 0
+            print(f"  {icon} {fam_name}: {count} patterns [{status}]")
+            if patterns:
+                print(f"       {', '.join(patterns)}...")
         
-        # 5. Show frontend V2 status
-        print("\n[5] Frontend V2 Components...")
-        fe = TA_COVERAGE.get("frontend_v2", {})
-        comps = fe.get("components", {})
-        for comp_name, desc in comps.items():
-            print(f"  {comp_name}: {desc}")
+        print(f"\n  Total ready: {total} patterns")
+        
+        # 5. Show Visual Modes
+        print("\n[5] Visual Mode Resolver (render isolation)...")
+        visual_modes = TA_COVERAGE.get("pattern_families_v2", {}).get("visual_modes", {})
+        for mode_name, desc in list(visual_modes.items())[:4]:
+            print(f"  {mode_name}: {desc}")
+        
+        # 6. Show Window Validator
+        print("\n[6] Pattern Window Validator (quality gate)...")
+        validator = TA_COVERAGE.get("pattern_families_v2", {}).get("window_validator", {})
+        print(f"  Principle: {validator.get('principle', '?')}")
+        checks = validator.get("checks", [])[:3]
+        for check in checks:
+            print(f"  - {check}")
         
         print("\n" + "=" * 64)
         print("  QUICK CHECK COMPLETE")
