@@ -31,6 +31,7 @@ from .visual_mode_resolver import get_visual_mode_resolver, filter_render_for_mo
 # Import family detectors
 from .horizontal_family import HorizontalFamilyDetector, get_horizontal_family_detector
 from .converging_family import ConvergingFamilyDetector, get_converging_family_detector
+from .parallel_family import ParallelFamilyDetector, get_parallel_family_detector
 
 
 @dataclass
@@ -102,6 +103,7 @@ class UnifiedPatternDetectorV2:
         # Family detectors
         self.horizontal_detector = get_horizontal_family_detector(config.get("horizontal_config"))
         self.converging_detector = get_converging_family_detector(config.get("converging_config"))
+        self.parallel_detector = get_parallel_family_detector(config.get("parallel_config"))
     
     def detect(self, candles: List[Dict], structure: Dict = None, impulse: Dict = None) -> DetectionResult:
         """
@@ -136,8 +138,10 @@ class UnifiedPatternDetectorV2:
         all_candidates = []
         
         if self.run_all_families:
+            # Run ALL 3 families
             all_candidates.extend(self._run_horizontal(candles, swing_highs, swing_lows))
             all_candidates.extend(self._run_converging(candles, swing_highs, swing_lows))
+            all_candidates.extend(self._run_parallel(candles, swing_highs, swing_lows))
         else:
             if classification.primary_family:
                 all_candidates.extend(self._run_family(
@@ -253,7 +257,9 @@ class UnifiedPatternDetectorV2:
             return self._run_horizontal(candles, swing_highs, swing_lows)
         elif family == PatternFamily.CONVERGING:
             return self._run_converging(candles, swing_highs, swing_lows)
-        # TODO: Add other families
+        elif family == PatternFamily.PARALLEL:
+            return self._run_parallel(candles, swing_highs, swing_lows)
+        # TODO: Add swing_composite, regime families
         return []
     
     def _run_horizontal(
@@ -274,6 +280,16 @@ class UnifiedPatternDetectorV2:
     ) -> List[Dict]:
         """Run converging family detector."""
         patterns = self.converging_detector.detect(candles, swing_highs, swing_lows)
+        return [p.to_dict() for p in patterns]
+    
+    def _run_parallel(
+        self,
+        candles: List[Dict],
+        swing_highs: List[SwingPoint],
+        swing_lows: List[SwingPoint]
+    ) -> List[Dict]:
+        """Run parallel family detector (channels, flags, pennants)."""
+        patterns = self.parallel_detector.detect(candles, swing_highs, swing_lows)
         return [p.to_dict() for p in patterns]
     
     def _determine_confidence_state(self, ranking: RankingResult) -> str:
