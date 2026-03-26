@@ -4,6 +4,9 @@
  * 
  * Shows pattern state, triggers, and actionability.
  * This is the decision-grade UI for the pattern.
+ * 
+ * DESIGN: Clean white background with black text
+ * Consistent with light theme UI system
  */
 
 import React from 'react';
@@ -16,31 +19,61 @@ import { getStateColor, getDirectionColor } from './patternRenderAdapter';
 export function PatternStateCard({ pattern }) {
   if (!pattern) {
     return (
-      <div className="rounded-xl border border-neutral-800 bg-neutral-950/50 p-4">
-        <div className="text-sm text-neutral-500">No pattern detected</div>
+      <div style={{
+        borderRadius: '12px',
+        border: '1px solid #e2e8f0',
+        background: '#ffffff',
+        padding: '16px',
+      }}>
+        <div style={{ fontSize: '14px', color: '#64748b' }}>No pattern detected</div>
       </div>
     );
   }
   
-  const stateColors = getStateColor(pattern.state);
-  const dirColors = getDirectionColor(pattern.direction);
+  // State colors mapping for light theme
+  const stateStyles = {
+    CLEAR: { bg: '#dcfce7', border: '#22c55e', text: '#15803d' },
+    CONFLICTED: { bg: '#fee2e2', border: '#ef4444', text: '#dc2626' },
+    COMPRESSION: { bg: '#dbeafe', border: '#3b82f6', text: '#2563eb' },
+    WEAK: { bg: '#fef3c7', border: '#f59e0b', text: '#d97706' },
+    NONE: { bg: '#f1f5f9', border: '#94a3b8', text: '#64748b' },
+  };
+  
+  const dirStyles = {
+    bullish: { text: '#15803d', icon: '▲' },
+    bearish: { text: '#dc2626', icon: '▼' },
+    neutral: { text: '#64748b', icon: '◆' },
+  };
+  
+  const state = stateStyles[pattern.state] || stateStyles.NONE;
+  const dir = dirStyles[pattern.direction] || dirStyles.neutral;
   
   return (
-    <div className="rounded-xl border border-neutral-800 bg-neutral-950/80 backdrop-blur-sm p-4 space-y-4">
+    <div style={{
+      borderRadius: '12px',
+      border: '1px solid #e2e8f0',
+      background: '#ffffff',
+      padding: '20px',
+    }}>
       {/* Header: Pattern + State */}
-      <div className="flex items-start justify-between gap-4">
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', marginBottom: '16px' }}>
         <div>
-          <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">
+          <div style={{ fontSize: '10px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
             Primary Pattern
           </div>
-          <div className="text-lg font-semibold text-white flex items-center gap-2">
-            <span className={dirColors.text}>{dirColors.icon}</span>
+          <div style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ color: dir.text }}>{dir.icon}</span>
             {pattern.title}
           </div>
         </div>
         
-        <div className={`px-3 py-1.5 rounded-lg ${stateColors.bg} ${stateColors.border} border`}>
-          <div className={`text-sm font-semibold ${stateColors.text}`}>
+        <div style={{
+          padding: '6px 12px',
+          borderRadius: '8px',
+          background: state.bg,
+          border: `1px solid ${state.border}`,
+        }}>
+          <div style={{ fontSize: '12px', fontWeight: '700', color: state.text }}>
             {pattern.state}
           </div>
         </div>
@@ -48,41 +81,41 @@ export function PatternStateCard({ pattern }) {
       
       {/* Summary */}
       {pattern.summary && (
-        <div className="text-sm text-neutral-400 leading-relaxed">
+        <div style={{ fontSize: '14px', color: '#475569', lineHeight: '1.5', marginBottom: '16px' }}>
           {pattern.summary}
         </div>
       )}
       
       {/* Stats Row */}
-      <div className="flex flex-wrap gap-4 text-sm">
-        <div className="flex items-center gap-1.5">
-          <span className="text-neutral-500">Confidence:</span>
-          <span className="text-white font-medium">
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', fontSize: '13px', marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid #e2e8f0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ color: '#64748b' }}>Confidence:</span>
+          <span style={{ color: '#0f172a', fontWeight: '600' }}>
             {(pattern.confidence * 100).toFixed(0)}%
           </span>
         </div>
         
-        <div className="flex items-center gap-1.5">
-          <span className="text-neutral-500">Direction:</span>
-          <span className={`font-medium ${dirColors.text}`}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ color: '#64748b' }}>Direction:</span>
+          <span style={{ fontWeight: '600', color: dir.text }}>
             {pattern.direction}
           </span>
         </div>
         
-        <div className="flex items-center gap-1.5">
-          <span className="text-neutral-500">Action:</span>
-          <span className={`font-medium ${
-            pattern.actionability === 'HIGH' ? 'text-green-400' :
-            pattern.actionability === 'MEDIUM' ? 'text-yellow-400' :
-            'text-neutral-400'
-          }`}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ color: '#64748b' }}>Action:</span>
+          <span style={{ 
+            fontWeight: '600', 
+            color: pattern.actionability === 'HIGH' ? '#15803d' :
+                   pattern.actionability === 'MEDIUM' ? '#d97706' : '#64748b'
+          }}>
             {pattern.actionability}
           </span>
         </div>
         
-        <div className="flex items-center gap-1.5">
-          <span className="text-neutral-500">Tradeable:</span>
-          <span className={pattern.tradeable ? 'text-green-400' : 'text-red-400'}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ color: '#64748b' }}>Tradeable:</span>
+          <span style={{ fontWeight: '600', color: pattern.tradeable ? '#15803d' : '#dc2626' }}>
             {pattern.tradeable ? 'Yes' : 'No'}
           </span>
         </div>
@@ -90,20 +123,25 @@ export function PatternStateCard({ pattern }) {
       
       {/* Triggers - CRITICAL */}
       {(pattern.trigger.up || pattern.trigger.down) && (
-        <div className="space-y-2">
-          <div className="text-xs text-neutral-500 uppercase tracking-wider">
+        <div style={{ marginBottom: '16px' }}>
+          <div style={{ fontSize: '10px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>
             Wait Conditions
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
             {pattern.trigger.up && (
-              <div className="rounded-lg bg-green-500/10 border border-green-500/30 p-3">
-                <div className="flex items-center gap-2 text-green-400 font-medium">
+              <div style={{
+                borderRadius: '8px',
+                background: '#f0fdf4',
+                border: '1px solid #22c55e',
+                padding: '12px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#15803d', fontWeight: '600', fontSize: '14px' }}>
                   <span>▲</span>
                   <span>Breakout: {pattern.trigger.up.toLocaleString()}</span>
                 </div>
                 {pattern.trigger.upMessage && (
-                  <div className="text-xs text-green-300/70 mt-1">
+                  <div style={{ fontSize: '12px', color: '#166534', marginTop: '6px' }}>
                     {pattern.trigger.upMessage}
                   </div>
                 )}
@@ -111,13 +149,18 @@ export function PatternStateCard({ pattern }) {
             )}
             
             {pattern.trigger.down && (
-              <div className="rounded-lg bg-red-500/10 border border-red-500/30 p-3">
-                <div className="flex items-center gap-2 text-red-400 font-medium">
+              <div style={{
+                borderRadius: '8px',
+                background: '#fef2f2',
+                border: '1px solid #ef4444',
+                padding: '12px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#dc2626', fontWeight: '600', fontSize: '14px' }}>
                   <span>▼</span>
                   <span>Breakdown: {pattern.trigger.down.toLocaleString()}</span>
                 </div>
                 {pattern.trigger.downMessage && (
-                  <div className="text-xs text-red-300/70 mt-1">
+                  <div style={{ fontSize: '12px', color: '#991b1b', marginTop: '6px' }}>
                     {pattern.trigger.downMessage}
                   </div>
                 )}
@@ -126,8 +169,14 @@ export function PatternStateCard({ pattern }) {
           </div>
           
           {pattern.trigger.invalidation && (
-            <div className="rounded-lg bg-orange-500/10 border border-orange-500/30 p-2">
-              <div className="flex items-center gap-2 text-orange-400 text-sm">
+            <div style={{
+              borderRadius: '8px',
+              background: '#fffbeb',
+              border: '1px solid #f59e0b',
+              padding: '10px',
+              marginTop: '10px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#d97706', fontSize: '13px', fontWeight: '600' }}>
                 <span>✗</span>
                 <span>Invalidation: {pattern.trigger.invalidation.toLocaleString()}</span>
               </div>
@@ -135,7 +184,7 @@ export function PatternStateCard({ pattern }) {
           )}
           
           {pattern.trigger.nearest && (
-            <div className="text-xs text-neutral-500 mt-1">
+            <div style={{ fontSize: '12px', color: '#64748b', marginTop: '8px' }}>
               Nearest trigger: {pattern.trigger.nearest.direction?.toUpperCase()} at {pattern.trigger.nearest.level?.toLocaleString()} ({pattern.trigger.nearest.percent}% away)
             </div>
           )}
@@ -144,17 +193,22 @@ export function PatternStateCard({ pattern }) {
       
       {/* Alternatives */}
       {pattern.alternatives && pattern.alternatives.length > 0 && (
-        <div className="pt-2 border-t border-neutral-800">
-          <div className="text-xs text-neutral-500 mb-2">Alternatives:</div>
-          <div className="flex flex-wrap gap-2">
+        <div style={{ paddingTop: '12px', borderTop: '1px solid #e2e8f0' }}>
+          <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '8px' }}>Alternatives:</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
             {pattern.alternatives.map((alt, i) => (
               <span 
                 key={i}
-                className={`text-xs px-2 py-1 rounded ${
-                  alt.bias === 'bullish' ? 'bg-green-500/10 text-green-400' :
-                  alt.bias === 'bearish' ? 'bg-red-500/10 text-red-400' :
-                  'bg-neutral-500/10 text-neutral-400'
-                }`}
+                style={{
+                  fontSize: '12px',
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  background: alt.bias === 'bullish' ? '#f0fdf4' :
+                              alt.bias === 'bearish' ? '#fef2f2' : '#f1f5f9',
+                  color: alt.bias === 'bullish' ? '#15803d' :
+                         alt.bias === 'bearish' ? '#dc2626' : '#64748b',
+                  fontWeight: '500',
+                }}
               >
                 {alt.type.replace(/_/g, ' ')} ({(alt.confidence * 100).toFixed(0)}%)
               </span>
@@ -165,7 +219,7 @@ export function PatternStateCard({ pattern }) {
       
       {/* Regime Context */}
       {pattern.regimeContext && (
-        <div className="pt-2 border-t border-neutral-800 text-xs text-neutral-500">
+        <div style={{ paddingTop: '12px', borderTop: '1px solid #e2e8f0', marginTop: '12px', fontSize: '12px', color: '#64748b' }}>
           Regime: {pattern.regimeContext.regime} | Trend: {pattern.regimeContext.trend}
         </div>
       )}

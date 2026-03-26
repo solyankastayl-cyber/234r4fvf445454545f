@@ -20,11 +20,11 @@ import TradeSetupCard from './TradeSetupCard';
 const Container = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px;
-  background: rgba(15, 23, 42, 0.6);
-  border-radius: 8px;
-  border: 1px solid rgba(148, 163, 184, 0.1);
+  gap: 16px;
+  padding: 20px;
+  background: #0f172a;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 `;
 
 const Header = styled.div`
@@ -36,8 +36,8 @@ const Header = styled.div`
 
 const Title = styled.h3`
   font-size: 14px;
-  font-weight: 600;
-  color: #f1f5f9;
+  font-weight: 700;
+  color: #ffffff;
   margin: 0;
   display: flex;
   align-items: center;
@@ -46,33 +46,35 @@ const Title = styled.h3`
 
 const Badge = styled.span`
   font-size: 10px;
-  padding: 2px 6px;
+  padding: 3px 8px;
   border-radius: 4px;
   background: rgba(34, 197, 94, 0.2);
   color: #22c55e;
+  font-weight: 600;
 `;
 
 const Tabs = styled.div`
   display: flex;
   gap: 4px;
-  background: rgba(15, 23, 42, 0.8);
+  background: rgba(255, 255, 255, 0.05);
   padding: 4px;
-  border-radius: 6px;
+  border-radius: 8px;
 `;
 
 const Tab = styled.button`
-  padding: 6px 12px;
-  font-size: 11px;
-  font-weight: 500;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s;
-  background: ${props => props.$active ? 'rgba(59, 130, 246, 0.3)' : 'transparent'};
-  color: ${props => props.$active ? '#3b82f6' : '#94a3b8'};
+  background: ${props => props.$active ? '#3b82f6' : 'transparent'};
+  color: ${props => props.$active ? '#ffffff' : 'rgba(255, 255, 255, 0.6)'};
   
   &:hover {
-    background: ${props => props.$active ? 'rgba(59, 130, 246, 0.3)' : 'rgba(148, 163, 184, 0.1)'};
+    background: ${props => props.$active ? '#3b82f6' : 'rgba(255, 255, 255, 0.1)'};
+    color: #ffffff;
   }
 `;
 
@@ -81,8 +83,8 @@ const Content = styled.div`
 `;
 
 const NoData = styled.div`
-  color: #64748b;
-  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
   text-align: center;
   padding: 40px;
 `;

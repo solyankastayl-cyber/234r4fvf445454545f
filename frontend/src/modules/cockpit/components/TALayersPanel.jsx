@@ -14,20 +14,20 @@ import styled from 'styled-components';
 import { TrendingUp, TrendingDown, Target, Activity, Layers } from 'lucide-react';
 
 const Container = styled.div`
-  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  background: #0f172a;
   border-radius: 12px;
-  padding: 16px;
+  padding: 20px;
   margin: 10px 0;
-  color: #e2e8f0;
+  color: #ffffff;
 `;
 
 const Header = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 12px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #334155;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 `;
 
 const Title = styled.div`
@@ -35,7 +35,7 @@ const Title = styled.div`
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #94a3b8;
+  color: #ffffff;
 `;
 
 const Grid = styled.div`
@@ -47,23 +47,23 @@ const Grid = styled.div`
 
 const Cell = styled.div`
   text-align: center;
-  padding: 8px;
-  background: rgba(255, 255, 255, 0.03);
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
   border-radius: 8px;
 `;
 
 const CellLabel = styled.div`
-  font-size: 9px;
-  color: #64748b;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.6);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 `;
 
 const CellValue = styled.div`
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
-  color: ${props => props.color || '#e2e8f0'};
+  color: ${props => props.color || '#ffffff'};
 `;
 
 const ProbabilityBar = styled.div`
@@ -117,14 +117,13 @@ const ScenarioProb = styled.div`
 `;
 
 const Narrative = styled.div`
-  background: rgba(59, 130, 246, 0.1);
+  background: rgba(59, 130, 246, 0.15);
   border-left: 3px solid #3b82f6;
-  padding: 10px 12px;
+  padding: 12px 14px;
   border-radius: 0 8px 8px 0;
-  font-size: 12px;
-  line-height: 1.5;
-  color: #cbd5e1;
-  font-style: italic;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #ffffff;
 `;
 
 const TALayersPanel = ({ taLayers, probability, scenarios, activeRange }) => {

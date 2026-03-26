@@ -1,93 +1,98 @@
 /**
  * PatternsList.jsx — Shows all detected patterns ranked by FINAL score (V2)
+ * 
+ * DESIGN: Dark card with white text, clear hierarchy
  */
 
 import React from 'react';
 import styled from 'styled-components';
 
 const Card = styled.div`
-  background: rgba(15, 23, 42, 0.8);
-  border: 1px solid rgba(148, 163, 184, 0.1);
-  border-radius: 8px;
-  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 14px;
 `;
 
 const Header = styled.div`
-  font-size: 12px;
-  font-weight: 600;
-  color: #f1f5f9;
-  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 12px;
 `;
 
 const Row = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px;
-  border-radius: 4px;
-  margin-bottom: 4px;
-  background: ${props => props.$isFirst ? 'rgba(59, 130, 246, 0.1)' : 'transparent'};
-  border-left: 2px solid ${props => props.$isFirst ? '#3b82f6' : 'transparent'};
+  padding: 10px 12px;
+  border-radius: 6px;
+  margin-bottom: 6px;
+  background: ${props => props.$isFirst ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.02)'};
+  border-left: 3px solid ${props => props.$isFirst ? '#3b82f6' : 'transparent'};
   
   &:hover {
-    background: rgba(148, 163, 184, 0.05);
+    background: rgba(255, 255, 255, 0.05);
   }
 `;
 
 const Left = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 `;
 
 const Rank = styled.span`
-  font-size: 10px;
-  color: #64748b;
-  width: 16px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  width: 20px;
+  font-weight: 500;
 `;
 
 const Type = styled.span`
-  font-size: 12px;
-  font-weight: 500;
-  color: #f1f5f9;
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
 `;
 
 const ModeBadge = styled.span`
-  font-size: 9px;
-  padding: 2px 4px;
-  border-radius: 3px;
+  font-size: 10px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-weight: 600;
   background: ${props => 
     props.$mode === 'strict' ? 'rgba(34, 197, 94, 0.2)' : 
     props.$mode === 'regime' ? 'rgba(59, 130, 246, 0.2)' : 
-    'rgba(148, 163, 184, 0.2)'
+    'rgba(255, 255, 255, 0.1)'
   };
   color: ${props => 
     props.$mode === 'strict' ? '#22c55e' : 
     props.$mode === 'regime' ? '#3b82f6' : 
-    '#94a3b8'
+    '#ffffff'
   };
 `;
 
 const BiasBadge = styled.span`
-  font-size: 9px;
-  padding: 2px 4px;
-  border-radius: 3px;
+  font-size: 10px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-weight: 600;
   background: ${props => 
-    props.$bias === 'bullish' ? 'rgba(34, 197, 94, 0.15)' : 
-    props.$bias === 'bearish' ? 'rgba(239, 68, 68, 0.15)' : 
+    props.$bias === 'bullish' ? 'rgba(34, 197, 94, 0.2)' : 
+    props.$bias === 'bearish' ? 'rgba(239, 68, 68, 0.2)' : 
     'transparent'
   };
   color: ${props => 
     props.$bias === 'bullish' ? '#22c55e' : 
     props.$bias === 'bearish' ? '#ef4444' : 
-    '#64748b'
+    'rgba(255, 255, 255, 0.6)'
   };
 `;
 
 const Right = styled.div`
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 `;
 
 const ScoreGroup = styled.div`
@@ -97,26 +102,26 @@ const ScoreGroup = styled.div`
 `;
 
 const FinalScore = styled.span`
-  font-size: 12px;
-  font-weight: 600;
-  color: ${props => props.$score > 75 ? '#22c55e' : props.$score > 50 ? '#eab308' : '#94a3b8'};
+  font-size: 14px;
+  font-weight: 700;
+  color: ${props => props.$score > 75 ? '#22c55e' : props.$score > 50 ? '#eab308' : 'rgba(255, 255, 255, 0.6)'};
 `;
 
 const BaseScore = styled.span`
-  font-size: 9px;
-  color: #64748b;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.4);
 `;
 
 const Stage = styled.span`
-  font-size: 10px;
-  color: #64748b;
-  min-width: 50px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  min-width: 55px;
   text-align: right;
 `;
 
 const NoData = styled.div`
-  color: #64748b;
-  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
   padding: 16px;
   text-align: center;
 `;

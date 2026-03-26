@@ -1,52 +1,54 @@
 /**
  * DominantCard.jsx — Shows dominant pattern/range with why_selected + confidence_state
+ * 
+ * DESIGN: Dark card (#0f172a) with white text for readability
  */
 
 import React from 'react';
 import styled from 'styled-components';
 
 const Card = styled.div`
-  background: rgba(15, 23, 42, 0.8);
+  background: rgba(255, 255, 255, 0.03);
   border: 1px solid ${props => 
-    props.$state === 'clear' ? 'rgba(34, 197, 94, 0.4)' : 
-    props.$state === 'conflicted' ? 'rgba(239, 68, 68, 0.4)' : 
-    'rgba(59, 130, 246, 0.3)'
+    props.$state === 'clear' ? 'rgba(34, 197, 94, 0.5)' : 
+    props.$state === 'conflicted' ? 'rgba(239, 68, 68, 0.5)' : 
+    'rgba(255, 255, 255, 0.1)'
   };
-  border-radius: 8px;
-  padding: 12px;
+  border-radius: 10px;
+  padding: 16px;
 `;
 
 const Header = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 `;
 
 const Label = styled.span`
   font-size: 10px;
-  color: #64748b;
+  color: rgba(255, 255, 255, 0.5);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 `;
 
 const Score = styled.span`
-  font-size: 12px;
-  font-weight: 600;
-  color: ${props => props.$score > 75 ? '#22c55e' : props.$score > 50 ? '#eab308' : '#94a3b8'};
+  font-size: 14px;
+  font-weight: 700;
+  color: ${props => props.$score > 75 ? '#22c55e' : props.$score > 50 ? '#eab308' : 'rgba(255, 255, 255, 0.6)'};
 `;
 
 const Title = styled.div`
-  font-size: 16px;
-  font-weight: 600;
-  color: #f1f5f9;
-  margin-bottom: 4px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 8px;
 `;
 
 const Meta = styled.div`
   font-size: 11px;
-  color: #94a3b8;
-  margin-bottom: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 14px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -55,80 +57,81 @@ const Meta = styled.div`
 
 const ModeBadge = styled.span`
   display: inline-block;
-  padding: 2px 6px;
+  padding: 3px 8px;
   border-radius: 4px;
   font-size: 10px;
-  font-weight: 500;
+  font-weight: 600;
   background: ${props => 
-    props.$mode === 'strict' ? 'rgba(34, 197, 94, 0.2)' : 
-    props.$mode === 'regime' ? 'rgba(59, 130, 246, 0.2)' : 
-    'rgba(148, 163, 184, 0.2)'
+    props.$mode === 'strict' ? 'rgba(34, 197, 94, 0.25)' : 
+    props.$mode === 'regime' ? 'rgba(59, 130, 246, 0.25)' : 
+    'rgba(255, 255, 255, 0.1)'
   };
   color: ${props => 
     props.$mode === 'strict' ? '#22c55e' : 
     props.$mode === 'regime' ? '#3b82f6' : 
-    '#94a3b8'
+    '#ffffff'
   };
 `;
 
 const BiasBadge = styled.span`
   display: inline-block;
-  padding: 2px 6px;
+  padding: 3px 8px;
   border-radius: 4px;
   font-size: 10px;
-  font-weight: 500;
+  font-weight: 600;
   background: ${props => 
-    props.$bias === 'bullish' ? 'rgba(34, 197, 94, 0.2)' : 
-    props.$bias === 'bearish' ? 'rgba(239, 68, 68, 0.2)' : 
-    'rgba(148, 163, 184, 0.2)'
+    props.$bias === 'bullish' ? 'rgba(34, 197, 94, 0.25)' : 
+    props.$bias === 'bearish' ? 'rgba(239, 68, 68, 0.25)' : 
+    'rgba(255, 255, 255, 0.1)'
   };
   color: ${props => 
     props.$bias === 'bullish' ? '#22c55e' : 
     props.$bias === 'bearish' ? '#ef4444' : 
-    '#94a3b8'
+    '#ffffff'
   };
 `;
 
 const ConfidenceBadge = styled.span`
   display: inline-block;
-  padding: 3px 8px;
+  padding: 3px 10px;
   border-radius: 4px;
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
   background: ${props => 
-    props.$state === 'clear' ? 'rgba(34, 197, 94, 0.2)' : 
-    props.$state === 'conflicted' ? 'rgba(239, 68, 68, 0.2)' : 
-    props.$state === 'weak' ? 'rgba(234, 179, 8, 0.2)' : 
-    'rgba(148, 163, 184, 0.2)'
+    props.$state === 'clear' ? 'rgba(34, 197, 94, 0.25)' : 
+    props.$state === 'conflicted' ? 'rgba(239, 68, 68, 0.25)' : 
+    props.$state === 'weak' ? 'rgba(234, 179, 8, 0.25)' : 
+    'rgba(255, 255, 255, 0.1)'
   };
   color: ${props => 
     props.$state === 'clear' ? '#22c55e' : 
     props.$state === 'conflicted' ? '#ef4444' : 
     props.$state === 'weak' ? '#eab308' : 
-    '#94a3b8'
+    '#ffffff'
   };
 `;
 
 const WhySection = styled.div`
-  border-top: 1px solid rgba(148, 163, 184, 0.1);
-  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 10px;
 `;
 
 const WhyLabel = styled.div`
   font-size: 10px;
-  color: #64748b;
-  margin-bottom: 4px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 6px;
 `;
 
 const WhyList = styled.ul`
   margin: 0;
   padding: 0 0 0 16px;
-  font-size: 11px;
-  color: #94a3b8;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.8);
   
   li {
-    margin-bottom: 2px;
+    margin-bottom: 4px;
+    line-height: 1.4;
   }
   
   li.warning {
@@ -143,35 +146,38 @@ const WhyList = styled.ul`
 const ComponentsGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 4px;
-  margin-top: 8px;
-  font-size: 9px;
+  gap: 6px;
+  margin-top: 12px;
+  font-size: 10px;
 `;
 
 const ComponentItem = styled.div`
   text-align: center;
-  padding: 4px;
-  border-radius: 4px;
-  background: rgba(148, 163, 184, 0.05);
+  padding: 8px 4px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.05);
   
   .label {
-    color: #64748b;
-    margin-bottom: 2px;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 4px;
+    font-size: 9px;
   }
   
   .value {
-    font-weight: 600;
+    font-weight: 700;
+    font-size: 12px;
     color: ${props => 
       props.$value > 0 ? '#22c55e' : 
       props.$value < 0 ? '#ef4444' : 
-      '#94a3b8'
+      'rgba(255, 255, 255, 0.6)'
     };
   }
 `;
 
 const NoData = styled.div`
-  color: #64748b;
-  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
   padding: 20px;
   text-align: center;
 `;
