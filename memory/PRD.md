@@ -10,27 +10,26 @@
 - Frontend скомпилирован на localhost:3000
 - Pattern V2 API возвращает данные: BTC (triple_top), ETH (symmetrical_triangle)
 
-### Pattern Window Validator Session
-**Проблема:** Система рисовала triple_top там где его нет — паттерн был растянут на 80+ баров, не было uptrend'а перед ним, пики были на разных уровнях.
+### Visual Mode Resolver Session
+**Проблема:** Frontend рисует ВСЁ одновременно — range box + HH/HL + triggers + polyline. Визуальная каша.
 
-**Решение:** Pattern Window Validator с жёсткими проверками:
-1. Window size — не больше 40 баров для 4H
-2. Structural integrity — правильное количество пиков/впадин
-3. Peak alignment — пики на одном уровне (±3.5%)
-4. Depth check — минимальная глубина 2%
-5. Pre-trend validation — uptrend перед top, downtrend перед bottom
-6. Range conflict — пенализация если паттерн внутри активного range
+**Решение:** Visual Mode Resolver — жёсткий переключатель что рисовать:
+
+**Режимы:**
+1. `range_only` — box + R/S + triggers (NO swings, NO polyline)
+2. `horizontal_pattern` — polyline + neckline (NO range, NO swings)
+3. `compression_pattern` — trendlines only (NO range, NO swings)
+4. `structure_only` — HH/HL/LL only (NO patterns)
+5. `none` — ничего
 
 **Результат:**
-- BTC: triple_top ОТКЛОНЁН (no_uptrend_before_top: -11.3%)
-- BTC: Теперь показывает rectangle вместо фейкового triple_top
-- ETH: Все паттерны отклонены — показывает NONE (это правильно!)
+- BTC: mode=`range_only`, allowed=[box, levels, triggers], forbidden=[polyline, trendlines, structure]
+- ETH: mode=`structure_only`, allowed=[structure, levels]
 
 **Файлы:**
-- `pattern_window_validator.py` — новый валидатор
-- `family_ranking.py` — интеграция валидатора
-- `unified_detector.py` — передача candles/swings в валидатор
-- `horizontal_family.py` — добавлены window и valleys
+- `visual_mode_resolver.py` — backend resolver
+- `unified_detector.py` — интеграция в pipeline
+- `PatternSVGOverlay.jsx` — frontend слушает visual_mode
 
 ## Architecture: Pattern Families System
 
