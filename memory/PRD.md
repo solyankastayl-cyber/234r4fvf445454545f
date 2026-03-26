@@ -138,8 +138,8 @@ Returns:
 - [x] Wire pattern-v2 to frontend (chart + triggers + state)
 
 ### P1 (Important - Next)
-- [ ] Add parallel_family (channels, flags)
-- [ ] Add swing_composite_family (H&S patterns)
+- [x] Add parallel_family (channels, flags) — DONE 2026-03-26 (+6 patterns)
+- [ ] Add swing_composite_family (H&S patterns) — NEXT
 - [ ] MTF Trigger Alignment (4H + 1D alignment)
 
 ### P2 (Nice to Have - Future)
