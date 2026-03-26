@@ -1,36 +1,42 @@
 #!/usr/bin/env python3
 """
-TA Engine + Exchange Intelligence Bootstrap System v5
-======================================================
+TA Engine Bootstrap System v6 — Pattern Families Architecture
+==============================================================
 
-ARCHITECTURE UPDATE (V2 Multi-Layer):
+CURRENT ARCHITECTURE (V2 Pattern Families):
 
-TA ENGINE V2:
-- 10 Analysis Layers (Structure-First approach):
-  1. Structure Layer (HH/HL/LH/LL, BOS, CHOCH)
-  2. Trendlines Layer
-  3. Channel Layer (FALLBACK only)
-  4. Figure Layer V2 (PRIMARY - triangles, wedges, H&S)
-  5. Levels Layer
-  6. Fibonacci Layer
-  7. Candle Layer
-  8. Elliott Layer
-  9. Regime Layer
-  10. Confirmation Layer
-  
-- Synthesis Engine: Combines all layers, picks MAIN pattern
-- Key principle: structure → figure → lines (NOT lines → figure)
+PATTERN FAMILIES ENGINE:
+- Unified detection via family architecture (NOT 100 separate detectors)
+- Pipeline: Swings → Family Classifier → Family Detector → Ranking → Render Contract
+- Core modules:
+  * swing_engine.py        — universal swing high/low detection
+  * geometry_engine.py     — unified geometric primitives
+  * horizontal_family.py   — double/triple top/bottom, range, rectangle
+  * converging_family.py   — triangles, wedges
+  * family_classifier.py   — routes candles to correct family
+  * family_ranking.py      — ranks candidates, computes REAL confidence
+  * pattern_regime_binding  — context: pattern + market regime
+  * trigger_engine.py      — what to WAIT for (breakout/breakdown levels)
+  * pattern_render_builder  — unified SVG render contract for frontend
+  * unified_detector.py    — single entry point
 
-INDICATORS: 15 total
-PATTERNS: 14+ (triangles, wedges, channels, double top/bottom, H&S, harmonics)
+KEY PRINCIPLES:
+- Confidence = Dominance (gap between #1 and #2 pattern), NOT geometric quality
+- Max confidence 0.92, never 100%
+- States: CLEAR / WEAK / CONFLICTED / COMPRESSION / NONE
+- Regime Binding: triangle in trend ≠ triangle in chop
+- Trigger Engine: what must happen for pattern to become valid
+- Render Contract: one format for ALL patterns (frontend just renders)
 
-EXCHANGE INTELLIGENCE:
-- Funding context, OI snapshots, Liquidation events
-- Order flow data, Symbol snapshots (derivatives)
-- Microstructure Intelligence
+FRONTEND V2:
+- usePatternV2 hook → fetches /api/ta-engine/pattern-v2/{symbol}
+- PatternStateCard → decision-grade UI (state + triggers + action)
+- PatternSVGOverlay → renders geometry + trigger lines on chart
+- Shows 1 dominant pattern only, no clutter
 
 KEY ENDPOINTS:
-- GET /api/ta-engine/mtf/{symbol}?timeframes=...  (NEW V2)
+- GET /api/ta-engine/pattern-v2/{symbol}?timeframe=4H  (PRIMARY V2)
+- GET /api/ta-engine/mtf/{symbol}?timeframes=...       (Legacy MTF)
 - GET /api/health
 
 Usage:
@@ -39,7 +45,7 @@ Usage:
     python bootstrap.py --exchange-only # Exchange data only
     python bootstrap.py --status        # Check full status
     python bootstrap.py --reset         # Reset and rebuild all
-    python bootstrap.py --quick         # Quick start (minimal data)
+    python bootstrap.py --quick         # Quick V2 pipeline check
 """
 
 import os
@@ -142,7 +148,7 @@ CHART_DATA_CONFIG = {
 # ═══════════════════════════════════════════════════════════════
 
 CALIBRATION_CONFIG = {
-    "version": "phase_ta_x",
+    "version": "pattern_families_v2",
     "enabled": True,
     "volatilityFilter": {
         "enabled": True,
@@ -181,27 +187,21 @@ CALIBRATION_CONFIG = {
             "donchian", "keltner",
         ]
     },
-    "patterns": {
-        "total": 14,
-        "core": [
-            "triangle_symmetric", "triangle_ascending", "triangle_descending",
-            "channel_ascending", "channel_descending", "channel_horizontal",
-            "compression", "breakout",
-        ],
-        "advanced": [
-            "head_shoulders", "wedge_rising", "wedge_falling",
-            "double_top", "double_bottom", "cup_handle",
-        ],
-        "harmonic": [
-            "harmonic_gartley", "harmonic_bat",
-        ],
-    },
-    "suggested_indicators": {
-        "trending": ["ema", "supertrend", "ichimoku", "macd", "parabolic_sar"],
-        "ranging": ["bollinger", "rsi", "cci", "williams_r", "donchian"],
-        "volatile": ["atr", "keltner", "bollinger", "rsi", "donchian"],
-        "compression": ["bollinger", "keltner", "atr", "rsi", "macd"],
-        "default": ["ema", "bollinger", "rsi", "atr", "ichimoku"],
+    "pattern_families_v2": {
+        "architecture": "unified_family_detector",
+        "entry_point": "unified_detector.py → detect_patterns_v2()",
+        "families": {
+            "horizontal": ["double_top", "double_bottom", "triple_top", "triple_bottom", "range", "rectangle"],
+            "converging": ["symmetrical_triangle", "ascending_triangle", "descending_triangle", "rising_wedge", "falling_wedge"],
+            "parallel": ["ascending_channel", "descending_channel", "horizontal_channel", "bull_flag", "bear_flag"],
+            "swing_composite": ["head_shoulders", "inverse_head_shoulders"],
+        },
+        "confidence_model": "dominance_based",
+        "max_confidence": 0.92,
+        "states": ["CLEAR", "WEAK", "CONFLICTED", "COMPRESSION", "NONE"],
+        "regime_binding": True,
+        "trigger_engine": True,
+        "render_contract": True,
     },
 }
 
@@ -337,31 +337,96 @@ EXCHANGE_INTEL_CONFIG = {
 # ═══════════════════════════════════════════════════════════════
 
 TA_COVERAGE = {
-    "version": "ta_x_complete",
+    "version": "pattern_families_v2",
     "indicators": {
         "count": 15,
         "core": ["sma", "ema", "rsi", "macd", "bollinger", "atr", "vwap", "supertrend", "volume_profile"],
         "phase_ta1": ["cci", "williams_r", "ichimoku", "parabolic_sar", "donchian", "keltner"],
     },
-    "patterns": {
-        "count": 14,
-        "geometry": ["triangle_symmetric", "triangle_ascending", "triangle_descending",
-                     "channel_ascending", "channel_descending", "channel_horizontal"],
-        "breakout": ["compression", "breakout_bullish", "breakout_bearish"],
-        "reversal": ["head_shoulders", "head_shoulders_inverse", "double_top", "double_bottom"],
-        "continuation": ["wedge_rising", "wedge_falling", "cup_handle"],
-        "harmonic": ["harmonic_gartley", "harmonic_bat"],
+    "pattern_families_v2": {
+        "architecture": "unified_family_detector",
+        "pipeline": "Swings → FamilyClassifier → FamilyDetector → Ranking → RegimeBinding → Triggers → RenderContract",
+        "modules": {
+            "swing_engine": "Universal swing high/low detection from OHLCV",
+            "geometry_engine": "Unified geometric primitives (line slopes, touches, angles)",
+            "family_classifier": "Routes candle data to correct family detector",
+            "family_ranking": "Ranks all candidates, computes dominance-based confidence",
+            "pattern_regime_binding": "Contextual meaning: same pattern ≠ same action in different regimes",
+            "trigger_engine": "Calculates breakout/breakdown/invalidation levels",
+            "pattern_render_builder": "Builds unified SVG render contract for frontend",
+            "unified_detector": "Single entry point: detect_patterns_v2(candles)",
+        },
+        "families_implemented": {
+            "horizontal": {
+                "module": "horizontal_family.py",
+                "patterns": ["double_top", "double_bottom", "triple_top", "triple_bottom", "range", "rectangle"],
+                "render_mode": "polyline | box",
+                "status": "DONE",
+            },
+            "converging": {
+                "module": "converging_family.py",
+                "patterns": ["symmetrical_triangle", "ascending_triangle", "descending_triangle", "rising_wedge", "falling_wedge"],
+                "render_mode": "two_lines",
+                "status": "DONE",
+            },
+            "parallel": {
+                "module": "parallel_family.py (pending)",
+                "patterns": ["ascending_channel", "descending_channel", "horizontal_channel", "bull_flag", "bear_flag"],
+                "render_mode": "two_lines",
+                "status": "P1",
+            },
+            "swing_composite": {
+                "module": "swing_composite_family.py (pending)",
+                "patterns": ["head_shoulders", "inverse_head_shoulders"],
+                "render_mode": "hs",
+                "status": "P1",
+            },
+        },
+        "confidence_model": {
+            "type": "dominance_based",
+            "description": "Confidence = gap between #1 and #2 pattern, NOT geometric quality",
+            "max": 0.92,
+            "never_100": True,
+            "states": {
+                "CLEAR": "Can trade (high dominance, single strong pattern)",
+                "WEAK": "Trade with caution",
+                "CONFLICTED": "Don't trade (competing patterns)",
+                "COMPRESSION": "Wait for breakout",
+                "NONE": "No pattern detected",
+            },
+        },
+        "regime_binding": {
+            "enabled": True,
+            "description": "Pattern meaning changes by market context",
+            "actionability_levels": ["HIGH", "MEDIUM", "LOW", "NONE"],
+        },
+        "trigger_engine": {
+            "enabled": True,
+            "trigger_types": ["breakout_up", "breakout_down", "invalidation"],
+            "description": "What must happen for pattern to become valid",
+        },
+        "render_contract": {
+            "enabled": True,
+            "modes": ["two_lines", "polyline", "box", "hs"],
+            "description": "Single format for ALL patterns. Frontend: switch(render_mode) → draw()",
+        },
     },
-    "pipeline": {
-        "flow": "PatternService -> ChartObjectBuilder -> ChartComposer -> /chart/full-analysis",
-        "object_categories": ["geometry", "pattern", "liquidity", "hypothesis", "fractal", "indicator"],
+    "api_endpoints": {
+        "primary": "GET /api/ta-engine/pattern-v2/{symbol}?timeframe=4H",
+        "legacy_mtf": "GET /api/ta-engine/mtf/{symbol}?timeframes=...",
+        "health": "GET /api/health",
     },
-    "frontend": {
+    "frontend_v2": {
         "theme": "light",
         "chart_library": "lightweight-charts v5.1.0",
         "entry_route": "/tech-analysis",
-        "entry_component": "TechAnalysisModule -> ChartLabView",
-        "design_system": "cockpit styled-components",
+        "components": {
+            "usePatternV2": "Hook → fetches /api/ta-engine/pattern-v2/{symbol}",
+            "patternRenderAdapter": "Normalizes backend V2 response for frontend",
+            "PatternStateCard": "Decision-grade UI: state + triggers + actionability",
+            "PatternSVGOverlay": "Renders geometry (two_lines, polyline, box, hs) + trigger lines",
+        },
+        "design_principle": "1 screen = 1 dominant pattern + its triggers + its state. No clutter.",
         "colors": {
             "background": "#ffffff",
             "surface": "#f5f7fa",
@@ -371,12 +436,14 @@ TA_COVERAGE = {
             "text_secondary": "#738094",
             "bullish": "#05A584",
             "bearish": "#ef4444",
+            "trigger_breakout": "#22c55e",
+            "trigger_breakdown": "#ef4444",
+            "trigger_invalidation": "#f97316",
+            "state_clear": "#22c55e",
+            "state_conflicted": "#ef4444",
+            "state_compression": "#3b82f6",
+            "state_weak": "#eab308",
         },
-        "layer_toggles": ["indicators", "patterns", "levels", "liquidity", "hypothesis", "fractals"],
-        "indicator_toggles": [
-            "EMA", "SMA", "RSI", "MACD", "Bollinger", "VWAP", "ATR",
-            "CCI", "Williams%R", "Ichimoku", "PSAR", "Donchian", "Keltner",
-        ],
     },
 }
 
@@ -998,19 +1065,36 @@ class Bootstrap:
             return
         
         print("\n" + "=" * 64)
-        print("  SYSTEM STATUS (Phase TA-X Complete)")
+        print("  SYSTEM STATUS (Pattern Families V2)")
         print("=" * 64)
         
-        # TA Engine
-        print("\n-- TA ENGINE --")
-        print(f"  Indicators: {TA_COVERAGE['indicators']['count']}")
-        print(f"    Core:     {', '.join(TA_COVERAGE['indicators']['core'])}")
-        print(f"    Phase TA-1: {', '.join(TA_COVERAGE['indicators']['phase_ta1'])}")
-        print(f"  Patterns:   {TA_COVERAGE['patterns']['count']}")
-        print(f"    Geometry: {', '.join(TA_COVERAGE['patterns']['geometry'])}")
-        print(f"    Reversal: {', '.join(TA_COVERAGE['patterns']['reversal'])}")
-        print(f"    Continuation: {', '.join(TA_COVERAGE['patterns']['continuation'])}")
-        print(f"    Harmonic: {', '.join(TA_COVERAGE['patterns']['harmonic'])}")
+        # Pattern Families V2
+        print("\n-- PATTERN FAMILIES V2 (PRIMARY) --")
+        pf = TA_COVERAGE.get("pattern_families_v2", {})
+        print(f"  Pipeline: {pf.get('pipeline', 'N/A')}")
+        
+        families = pf.get("families_implemented", {})
+        for fam_name, fam_info in families.items():
+            status = fam_info.get("status", "?")
+            patterns = fam_info.get("patterns", [])
+            render = fam_info.get("render_mode", "?")
+            icon = "+" if status == "DONE" else "~"
+            print(f"  [{icon}] {fam_name}: {', '.join(patterns)} ({render}) [{status}]")
+        
+        conf = pf.get("confidence_model", {})
+        print(f"  Confidence: {conf.get('type', '?')} (max {conf.get('max', '?')})")
+        print(f"  Regime Binding: {pf.get('regime_binding', {}).get('enabled', False)}")
+        print(f"  Trigger Engine: {pf.get('trigger_engine', {}).get('enabled', False)}")
+        print(f"  Render Contract: {pf.get('render_contract', {}).get('modes', [])}")
+        
+        # API
+        endpoints = TA_COVERAGE.get("api_endpoints", {})
+        print(f"\n  Primary API: {endpoints.get('primary', 'N/A')}")
+        
+        # Indicators
+        print(f"\n-- INDICATORS ({TA_COVERAGE['indicators']['count']}) --")
+        print(f"  Core:     {', '.join(TA_COVERAGE['indicators']['core'])}")
+        print(f"  Extended: {', '.join(TA_COVERAGE['indicators']['phase_ta1'])}")
         
         # Data
         print("\n-- DATA --")
@@ -1048,14 +1132,15 @@ class Bootstrap:
         ms_count = self.db.microstructure_snapshot_history.count_documents({})
         print(f"  Snapshots: {ms_count:,}")
         
-        # Frontend
-        print("\n-- FRONTEND --")
-        print(f"  Theme:    {TA_COVERAGE['frontend']['theme']}")
-        print(f"  Chart:    {TA_COVERAGE['frontend']['chart_library']}")
-        print(f"  Route:    {TA_COVERAGE['frontend']['entry_route']}")
-        print(f"  Entry:    {TA_COVERAGE['frontend']['entry_component']}")
-        print(f"  Layers:   {', '.join(TA_COVERAGE['frontend']['layer_toggles'])}")
-        print(f"  Indicators: {len(TA_COVERAGE['frontend']['indicator_toggles'])} chips")
+        # Frontend V2
+        fe = TA_COVERAGE.get("frontend_v2", {})
+        print("\n-- FRONTEND V2 --")
+        print(f"  Route:    {fe.get('entry_route', '/tech-analysis')}")
+        print(f"  Chart:    {fe.get('chart_library', '?')}")
+        comps = fe.get("components", {})
+        for comp_name, desc in comps.items():
+            print(f"  {comp_name}: {desc}")
+        print(f"  Design:   {fe.get('design_principle', '?')}")
         
         print("\n" + "=" * 64)
     
@@ -1088,7 +1173,7 @@ class Bootstrap:
     
     def run(self):
         print("\n" + "=" * 64)
-        print("  FULL SYSTEM BOOTSTRAP (Phase TA-X)")
+        print("  FULL SYSTEM BOOTSTRAP (Pattern Families V2)")
         print("  TA Engine + Exchange Intelligence")
         print("=" * 64)
         
@@ -1104,6 +1189,87 @@ class Bootstrap:
         print("=" * 64)
         
         self.status()
+    
+    def run_quick(self):
+        """Quick V2 pipeline check — verify pattern-v2 endpoint works."""
+        print("\n" + "=" * 64)
+        print("  QUICK CHECK — Pattern Families V2 Pipeline")
+        print("=" * 64)
+        
+        if not self.connect():
+            return
+        
+        import requests
+        
+        # 1. Check MongoDB has candles
+        print("\n[1] MongoDB candles...")
+        for symbol in ["BTC", "ETH"]:
+            count = self.db.candles.count_documents({"symbol": symbol})
+            print(f"  {symbol}: {count:,} candles {'OK' if count > 0 else 'MISSING'}")
+        
+        # 2. Check backend is alive
+        print("\n[2] Backend health...")
+        api_base = os.environ.get("REACT_APP_BACKEND_URL", "http://localhost:8001")
+        try:
+            r = requests.get(f"{api_base}/api/health", timeout=5)
+            print(f"  Health: {r.status_code} {'OK' if r.status_code == 200 else 'FAIL'}")
+        except Exception as e:
+            print(f"  Health: FAIL ({e})")
+            # Try localhost fallback
+            try:
+                r = requests.get("http://localhost:8001/api/health", timeout=5)
+                print(f"  Health (localhost): {r.status_code}")
+                api_base = "http://localhost:8001"
+            except:
+                print("  Backend not reachable")
+                return
+        
+        # 3. Test pattern-v2 endpoint for BTC and ETH
+        print("\n[3] Pattern V2 API...")
+        for symbol in ["BTC", "ETH"]:
+            try:
+                url = f"{api_base}/api/ta-engine/pattern-v2/{symbol}?timeframe=4H"
+                r = requests.get(url, timeout=30)
+                data = r.json()
+                
+                if data.get("ok"):
+                    dominant = data.get("dominant", {})
+                    state = data.get("confidence_state", "?")
+                    tradeable = data.get("tradeable", "?")
+                    render_mode = data.get("render_contract", {}).get("render_mode", "?")
+                    triggers = data.get("triggers", {})
+                    n_triggers = triggers.get("total_triggers", 0) if triggers else 0
+                    
+                    print(f"  {symbol}: {dominant.get('type', '?')} | "
+                          f"conf={dominant.get('confidence', 0):.2f} | "
+                          f"state={state} | "
+                          f"tradeable={tradeable} | "
+                          f"render={render_mode} | "
+                          f"triggers={n_triggers}")
+                else:
+                    print(f"  {symbol}: FAIL — {data.get('error', 'unknown')}")
+            except Exception as e:
+                print(f"  {symbol}: ERROR — {e}")
+        
+        # 4. Show Pattern Families architecture summary
+        print("\n[4] Pattern Families V2 Architecture...")
+        families = TA_COVERAGE.get("pattern_families_v2", {}).get("families_implemented", {})
+        for fam_name, fam_info in families.items():
+            status = fam_info.get("status", "?")
+            patterns = fam_info.get("patterns", [])
+            icon = "+" if status == "DONE" else "~"
+            print(f"  [{icon}] {fam_name}: {len(patterns)} patterns [{status}]")
+        
+        # 5. Show frontend V2 status
+        print("\n[5] Frontend V2 Components...")
+        fe = TA_COVERAGE.get("frontend_v2", {})
+        comps = fe.get("components", {})
+        for comp_name, desc in comps.items():
+            print(f"  {comp_name}: {desc}")
+        
+        print("\n" + "=" * 64)
+        print("  QUICK CHECK COMPLETE")
+        print("=" * 64)
     
     def reset(self):
         if not self.connect():
@@ -1123,11 +1289,12 @@ class Bootstrap:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="TA Engine + Exchange Intelligence Bootstrap v4",
+        description="TA Engine Bootstrap v6 — Pattern Families Architecture",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   python bootstrap.py                 # Full bootstrap
+  python bootstrap.py --quick         # Quick V2 pipeline check
   python bootstrap.py --ta-only       # TA Engine only
   python bootstrap.py --exchange-only # Exchange data only
   python bootstrap.py --status        # Check status
@@ -1138,6 +1305,7 @@ Examples:
     parser.add_argument("--reset", action="store_true", help="Reset and rebuild all")
     parser.add_argument("--ta-only", action="store_true", help="Bootstrap TA Engine only")
     parser.add_argument("--exchange-only", action="store_true", help="Bootstrap Exchange data only")
+    parser.add_argument("--quick", action="store_true", help="Quick V2 pipeline check")
     
     args = parser.parse_args()
     
@@ -1145,6 +1313,8 @@ Examples:
     
     if args.status:
         bootstrap.status()
+    elif args.quick:
+        bootstrap.run_quick()
     elif args.reset:
         bootstrap.reset()
     elif args.ta_only:
