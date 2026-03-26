@@ -24,6 +24,7 @@ from .family_classifier import FamilyClassifier, ClassificationResult, get_famil
 from .family_ranking import FamilyRanking, RankingResult, get_family_ranking
 from .pattern_family_matrix import PatternFamily
 from .pattern_regime_binding import PatternRegimeBinder, get_pattern_regime_binder, RegimeContext
+from .trigger_engine import TriggerEngine, get_trigger_engine, build_triggers
 
 # Import family detectors
 from .horizontal_family import HorizontalFamilyDetector, get_horizontal_family_detector
@@ -43,6 +44,7 @@ class DetectionResult:
     confidence_state: str  # CLEAR / WEAK / CONFLICTED / COMPRESSION / NONE
     regime_context: Optional[Dict]  # Market regime info
     actionability: str     # HIGH / MEDIUM / LOW / NONE
+    triggers: Optional[Dict]  # What to wait for
     
     def to_dict(self) -> Dict:
         return {
@@ -56,6 +58,7 @@ class DetectionResult:
             "confidence_state": self.confidence_state,
             "regime_context": self.regime_context,
             "actionability": self.actionability,
+            "triggers": self.triggers,
         }
 
 
@@ -88,6 +91,7 @@ class UnifiedPatternDetectorV2:
         self.classifier = get_family_classifier(config)
         self.ranking = get_family_ranking(config)
         self.regime_binder = get_pattern_regime_binder(config)
+        self.trigger_engine = get_trigger_engine(config)
         
         # Family detectors
         self.horizontal_detector = get_horizontal_family_detector(config.get("horizontal_config"))
@@ -157,7 +161,19 @@ class UnifiedPatternDetectorV2:
             regime_binding = dom_data.get("regime_binding", {})
             actionability = regime_binding.get("actionability", "low").upper()
         
-        # 9. BUILD RESULT
+        # 9. BUILD TRIGGERS (what to wait for)
+        triggers = None
+        current_price = candles[-1].get("close", 0) if candles else 0
+        
+        if ranking_result.dominant:
+            dom_data = ranking_result.dominant.pattern_data
+            triggers = self.trigger_engine.build_triggers(
+                dom_data, 
+                current_price, 
+                candles
+            ).to_dict()
+        
+        # 10. BUILD RESULT
         dominant = None
         if ranking_result.dominant:
             dominant = ranking_result.dominant.to_dict()
@@ -175,6 +191,7 @@ class UnifiedPatternDetectorV2:
             confidence_state=confidence_state,
             regime_context=regime_context.to_dict(),
             actionability=actionability,
+            triggers=triggers,
         )
     
     def _run_family(
@@ -261,6 +278,7 @@ class UnifiedPatternDetectorV2:
             confidence_state="NONE",
             regime_context=None,
             actionability="NONE",
+            triggers=None,
         )
 
 
