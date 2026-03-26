@@ -28,7 +28,7 @@ from pathlib import Path
 # Add backend to path for direct imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://ta-engine-preview-1.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://tech-analysis-core.preview.emergentagent.com').rstrip('/')
 
 
 class TestAggregatorHealthEndpoint:

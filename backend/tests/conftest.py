@@ -8,4 +8,4 @@ import pytest
 def pytest_configure(config):
     """Set environment variables before tests run."""
     if not os.environ.get('REACT_APP_BACKEND_URL'):
-        os.environ['REACT_APP_BACKEND_URL'] = 'https://ta-engine-preview-1.preview.emergentagent.com'
+        os.environ['REACT_APP_BACKEND_URL'] = 'https://tech-analysis-core.preview.emergentagent.com'

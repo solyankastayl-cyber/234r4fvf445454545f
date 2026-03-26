@@ -72,6 +72,11 @@ import { buildNarrative, NarrativeSummary } from '../../../components/chart-engi
 import StoryLine from '../components/StoryLine';
 
 // ════════════════════════════════════════════════════════════════
+// PATTERN V2 — New unified pattern detection system
+// ════════════════════════════════════════════════════════════════
+import { usePatternV2, PatternStateCard } from '../../ta/patterns';
+
+// ════════════════════════════════════════════════════════════════
 // CONFLUENCE ENGINE — TA Decision Logic (NEW!)
 // ════════════════════════════════════════════════════════════════
 import { buildConfluence, getLayerVisibility } from '../utils/confluenceEngine';
@@ -641,6 +646,12 @@ const ResearchView = () => {
   
   // Active indicators toggle (for pane visibility)
   const [activeIndicators, setActiveIndicators] = useState({ rsi: false, macd: false });
+  
+  // ═══════════════════════════════════════════════════════════════
+  // PATTERN V2 — Unified detection with render contract & triggers
+  // ═══════════════════════════════════════════════════════════════
+  const baseSymbol = symbol.replace('USDT', '');
+  const { pattern: patternV2, loading: patternV2Loading } = usePatternV2(baseSymbol, selectedTF);
   
   const handleIndicatorToggle = useCallback((indicator) => {
     setActiveIndicators(prev => ({

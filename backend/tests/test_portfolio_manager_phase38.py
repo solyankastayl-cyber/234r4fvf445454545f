@@ -30,7 +30,7 @@ import random
 import string
 
 # Base URL from environment
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://ta-engine-preview-1.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://tech-analysis-core.preview.emergentagent.com').rstrip('/')
 
 
 # ══════════════════════════════════════════════════════════════

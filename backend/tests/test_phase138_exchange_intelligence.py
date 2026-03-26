@@ -14,7 +14,7 @@ from datetime import datetime
 # Use external URL for testing (what users actually see)
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 if not BASE_URL:
-    BASE_URL = "https://ta-engine-preview-1.preview.emergentagent.com"
+    BASE_URL = "https://tech-analysis-core.preview.emergentagent.com"
 
 
 # ============================================
