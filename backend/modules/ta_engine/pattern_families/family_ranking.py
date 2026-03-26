@@ -4,9 +4,10 @@ Family Ranking — Selects Dominant Pattern
 
 After family detectors run, this engine:
 1. Collects all candidates from all families
-2. Ranks them by confidence
-3. Resolves conflicts
-4. Returns dominant + alternatives
+2. VALIDATES each pattern window (NEW!)
+3. Ranks them by confidence
+4. Resolves conflicts
+5. Returns dominant + alternatives
 
 KEY PRINCIPLE: Better to return "no pattern" than garbage fallback
 """
@@ -15,6 +16,7 @@ from typing import List, Dict, Optional, Any
 from dataclasses import dataclass, field
 
 from .pattern_family_matrix import PatternFamily, PatternBias
+from .pattern_window_validator import validate_pattern_window
 
 
 @dataclass
@@ -85,11 +87,20 @@ class FamilyRanking:
     def rank(
         self,
         candidates: List[Dict],  # Pattern dicts from family detectors
+        candles: List[Dict] = None,  # Candles for window validation
+        swings: List[Dict] = None,   # Swings for noise filter
+        active_range: Dict = None,   # Active range for conflict
+        timeframe: str = "4H",       # Timeframe for window limits
     ) -> RankingResult:
         """
         Rank all pattern candidates.
         
-        CRITICAL: confidence = dominance strength, NOT pattern quality
+        CRITICAL FLOW:
+        1. Validate each pattern window (NEW!)
+        2. Filter by minimum confidence
+        3. Compute dominance confidence
+        4. Detect conflicts
+        5. Return ranked result
         
         Args:
             candidates: List of pattern dicts, each must have:
@@ -97,6 +108,10 @@ class FamilyRanking:
                 - family: family name
                 - bias: bullish/bearish/neutral
                 - confidence: 0-1 (pattern quality)
+            candles: OHLCV candles for window validation
+            swings: Pre-computed swings
+            active_range: Active range if exists
+            timeframe: Current timeframe
         
         Returns:
             RankingResult with dominant, alternatives, rejected
@@ -110,11 +125,48 @@ class FamilyRanking:
                 tradeable=False,
             )
         
-        # Filter by minimum confidence
-        valid = []
+        # ═══════════════════════════════════════════════════════════════
+        # STEP 1: WINDOW VALIDATION (CRITICAL NEW STEP)
+        # ═══════════════════════════════════════════════════════════════
+        validated = []
         rejected = []
         
         for c in candidates:
+            # Skip window validation if no candles provided
+            if candles is None:
+                validated.append(c)
+                continue
+            
+            # Validate pattern window
+            is_valid, reason, penalty = validate_pattern_window(
+                pattern=c,
+                candles=candles,
+                swings=swings,
+                active_range=active_range,
+                timeframe=timeframe
+            )
+            
+            if not is_valid:
+                rejected.append({
+                    "type": c.get("type"),
+                    "confidence": c.get("confidence", 0),
+                    "reason": f"window_validation_failed: {reason}"
+                })
+                continue
+            
+            # Apply score penalty if any
+            if penalty > 0:
+                c["confidence"] = max(0.1, c.get("confidence", 0) - penalty)
+                c["window_penalty"] = penalty
+            
+            validated.append(c)
+        
+        # ═══════════════════════════════════════════════════════════════
+        # STEP 2: CONFIDENCE FILTER
+        # ═══════════════════════════════════════════════════════════════
+        valid = []
+        
+        for c in validated:
             conf = c.get("confidence", 0)
             if conf >= self.min_confidence:
                 valid.append(c)

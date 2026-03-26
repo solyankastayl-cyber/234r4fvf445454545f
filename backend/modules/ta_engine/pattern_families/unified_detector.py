@@ -22,7 +22,7 @@ from .swing_engine import SwingEngine, SwingPoint, get_swing_engine
 from .geometry_engine import GeometryEngine, get_geometry_engine
 from .family_classifier import FamilyClassifier, ClassificationResult, get_family_classifier
 from .family_ranking import FamilyRanking, RankingResult, get_family_ranking
-from .pattern_family_matrix import PatternFamily
+from .pattern_family_matrix import PatternFamily, PatternBias
 from .pattern_regime_binding import PatternRegimeBinder, get_pattern_regime_binder, RegimeContext
 from .trigger_engine import TriggerEngine, get_trigger_engine, build_triggers
 from .pattern_render_builder import build_render_contract
@@ -117,7 +117,7 @@ class UnifiedPatternDetectorV2:
             "highs_count": len(swing_highs),
             "lows_count": len(swing_lows),
             "recent_highs": [h.to_dict() for h in swing_highs[-5:]],
-            "recent_lows": [l.to_dict() for l in swing_lows[-5:]],
+            "recent_lows": [sw.to_dict() for sw in swing_lows[-5:]],
         }
         
         if len(swing_highs) < 2 or len(swing_lows) < 2:
@@ -151,8 +151,27 @@ class UnifiedPatternDetectorV2:
         # Convert back to dicts with regime info
         bound_candidates = [bp.to_dict() for bp in bound_patterns]
         
-        # 6. RANK CANDIDATES (with real confidence)
-        ranking_result = self.ranking.rank(bound_candidates)
+        # 6. RANK CANDIDATES (with real confidence + WINDOW VALIDATION)
+        # Convert swings to dicts for validator
+        all_swings = []
+        for high in swing_highs:
+            all_swings.append({"index": high.index, "price": high.price, "type": high.type.value})
+        for low in swing_lows:
+            all_swings.append({"index": low.index, "price": low.price, "type": low.type.value})
+        
+        # Detect active range for conflict check
+        active_range = self._detect_active_range(candles, swing_highs, swing_lows)
+        
+        # Get timeframe from candles metadata or default
+        timeframe = candles[0].get("timeframe", "4H") if candles else "4H"
+        
+        ranking_result = self.ranking.rank(
+            bound_candidates,
+            candles=candles,
+            swings=all_swings,
+            active_range=active_range,
+            timeframe=timeframe
+        )
         
         # 7. DETERMINE CONFIDENCE STATE
         confidence_state = self._determine_confidence_state(ranking_result)
@@ -291,6 +310,56 @@ class UnifiedPatternDetectorV2:
             triggers=None,
             render_contract=None,
         )
+    
+    def _detect_active_range(
+        self,
+        candles: List[Dict],
+        swing_highs: List[SwingPoint],
+        swing_lows: List[SwingPoint]
+    ) -> Optional[Dict]:
+        """
+        Detect if there's an active range.
+        
+        Used for:
+        - Pattern conflict resolution
+        - Window validation
+        
+        Returns:
+            Range dict or None
+        """
+        if len(candles) < 20 or not swing_highs or not swing_lows:
+            return None
+        
+        # Look at recent swings (last 30 bars)
+        recent_range = 30
+        recent_highs = [high for high in swing_highs if high.index >= len(candles) - recent_range]
+        recent_lows = [low for low in swing_lows if low.index >= len(candles) - recent_range]
+        
+        if len(recent_highs) < 2 or len(recent_lows) < 2:
+            return None
+        
+        # Check if highs and lows are roughly horizontal
+        high_prices = [high.price for high in recent_highs]
+        low_prices = [low.price for low in recent_lows]
+        
+        high_avg = sum(high_prices) / len(high_prices)
+        low_avg = sum(low_prices) / len(low_prices)
+        
+        high_spread = (max(high_prices) - min(high_prices)) / high_avg if high_avg > 0 else 0
+        low_spread = (max(low_prices) - min(low_prices)) / low_avg if low_avg > 0 else 0
+        
+        # If both spreads are small, we have a range
+        if high_spread < 0.04 and low_spread < 0.04:  # < 4% spread
+            return {
+                "top": max(high_prices),
+                "bottom": min(low_prices),
+                "start_index": min(high.index for high in recent_highs),
+                "end_index": len(candles) - 1,
+                "touches_top": len(recent_highs),
+                "touches_bottom": len(recent_lows),
+            }
+        
+        return None
 
 
 # Singleton

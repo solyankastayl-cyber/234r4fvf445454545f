@@ -46,6 +46,27 @@ class HorizontalPattern:
     touches_top: int = 0
     touches_bottom: int = 0
     
+    # WINDOW INFO (for validator)
+    window: Dict = None           # {start_index, end_index, length}
+    anchors: List[Dict] = None    # Same as peaks for tops, troughs for bottoms
+    valleys: List[Dict] = None    # Valleys between peaks (for tops)
+    
+    def __post_init__(self):
+        # Build window from indices
+        if self.window is None and self.start_index is not None and self.end_index is not None:
+            self.window = {
+                "start_index": self.start_index,
+                "end_index": self.end_index,
+                "length": self.end_index - self.start_index
+            }
+        
+        # Build anchors from peaks/troughs
+        if self.anchors is None:
+            if self.peaks:
+                self.anchors = self.peaks
+            elif self.troughs:
+                self.anchors = self.troughs
+    
     def to_dict(self) -> Dict:
         return {
             "type": self.type,
@@ -54,6 +75,7 @@ class HorizontalPattern:
             "confidence": round(self.confidence, 2),
             "peaks": self.peaks,
             "troughs": self.troughs,
+            "valleys": self.valleys,
             "neckline": round(self.neckline, 2) if self.neckline else None,
             "resistance": round(self.resistance, 2) if self.resistance else None,
             "support": round(self.support, 2) if self.support else None,
@@ -63,6 +85,8 @@ class HorizontalPattern:
             "end_index": self.end_index,
             "touches_top": self.touches_top,
             "touches_bottom": self.touches_bottom,
+            "window": self.window,
+            "anchors": self.anchors,
         }
 
 
@@ -212,6 +236,7 @@ class HorizontalFamilyDetector:
                     confidence=confidence,
                     peaks=[p1.to_dict(), p2.to_dict()],
                     troughs=[valley.to_dict()],
+                    valleys=[valley.to_dict()],  # Valleys for window validator
                     neckline=valley.price,
                     resistance=max(p1.price, p2.price),
                     height=height,
@@ -376,6 +401,7 @@ class HorizontalFamilyDetector:
                     confidence=confidence,
                     peaks=[p1.to_dict(), p2.to_dict(), p3.to_dict()],
                     troughs=[v1.to_dict(), v2.to_dict()],
+                    valleys=[v1.to_dict(), v2.to_dict()],  # For window validator
                     neckline=neckline,
                     resistance=avg,
                     height=height,
