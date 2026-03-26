@@ -1632,9 +1632,8 @@ const ResearchChart = ({
         showOverlay={false}
         chartState={chartState}
       />
-      {/* Pattern V2 Overlay — toggleable via showPatternOverlay */}
-      {/* FIXED: Use pattern_render_contract directly, not patternV2.primary_pattern */}
-      {showPatternOverlay && data?.pattern_render_contract && (
+      {/* Pattern V2 Overlay — HIDDEN when V2 triggers present (V2 uses PatternStateCard instead) */}
+      {showPatternOverlay && data?.pattern_render_contract && !data?.v2_triggers && (
         <PatternOverlay patternV2={patternV2} renderContract={data.pattern_render_contract} />
       )}
       {/* Fibonacci Overlay — toggleable via showFibonacciOverlay */}

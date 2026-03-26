@@ -77,7 +77,9 @@ const PatternSVGOverlay = ({ chart, priceSeries, pattern, renderContract, data }
       // ═══════════════════════════════════════════════════════════════
       if (renderContract && renderContract.type && renderContract.render_mode) {
         console.log('[PatternSVGOverlay] Using UNIFIED render_contract:', renderContract.type);
-        return renderUnifiedContract(renderContract, toX, toY, visibleRange);
+        const patternElements = renderUnifiedContract(renderContract, toX, toY, visibleRange);
+        const triggerElements = renderTriggerLines(data?.v2_triggers, toX, toY, visibleRange);
+        return [...patternElements, ...triggerElements];
       }
       
       // ═══════════════════════════════════════════════════════════════
@@ -929,6 +931,119 @@ function renderUnifiedHS(contract, toX, toY) {
       />
     );
   });
+  
+  return elements;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TRIGGER LINES — Breakout / Breakdown / Invalidation
+// ═══════════════════════════════════════════════════════════════
+function renderTriggerLines(triggers, toX, toY, visibleRange) {
+  if (!triggers) return [];
+  
+  const elements = [];
+  const xStart = toX(visibleRange?.from) || 0;
+  const xEnd = toX(visibleRange?.to) || 1500;
+  const lineWidth = Math.max(xEnd - xStart, 200);
+  
+  // Breakout UP line
+  if (typeof triggers.up === 'number') {
+    const y = toY(triggers.up);
+    if (y != null) {
+      elements.push(
+        <line
+          key="trigger-up"
+          x1={xStart}
+          y1={y}
+          x2={xStart + lineWidth}
+          y2={y}
+          stroke="#22c55e"
+          strokeWidth={1.5}
+          strokeDasharray="8 4"
+          opacity={0.8}
+        />
+      );
+      elements.push(
+        <text
+          key="trigger-up-label"
+          x={xStart + lineWidth - 4}
+          y={y - 6}
+          fill="#22c55e"
+          fontSize="10"
+          fontWeight="600"
+          textAnchor="end"
+        >
+          Breakout {triggers.up.toLocaleString()}
+        </text>
+      );
+    }
+  }
+  
+  // Breakdown DOWN line
+  if (typeof triggers.down === 'number') {
+    const y = toY(triggers.down);
+    if (y != null) {
+      elements.push(
+        <line
+          key="trigger-down"
+          x1={xStart}
+          y1={y}
+          x2={xStart + lineWidth}
+          y2={y}
+          stroke="#ef4444"
+          strokeWidth={1.5}
+          strokeDasharray="8 4"
+          opacity={0.8}
+        />
+      );
+      elements.push(
+        <text
+          key="trigger-down-label"
+          x={xStart + lineWidth - 4}
+          y={y + 14}
+          fill="#ef4444"
+          fontSize="10"
+          fontWeight="600"
+          textAnchor="end"
+        >
+          Breakdown {triggers.down.toLocaleString()}
+        </text>
+      );
+    }
+  }
+  
+  // Invalidation line
+  if (typeof triggers.invalidation === 'number') {
+    const y = toY(triggers.invalidation);
+    if (y != null) {
+      elements.push(
+        <line
+          key="trigger-invalidation"
+          x1={xStart}
+          y1={y}
+          x2={xStart + lineWidth}
+          y2={y}
+          stroke="#f97316"
+          strokeWidth={1}
+          strokeDasharray="4 4"
+          opacity={0.6}
+        />
+      );
+      elements.push(
+        <text
+          key="trigger-invalidation-label"
+          x={xStart + lineWidth - 4}
+          y={y + 14}
+          fill="#f97316"
+          fontSize="9"
+          fontWeight="600"
+          textAnchor="end"
+        >
+          Invalidation {triggers.invalidation.toLocaleString()}
+        </text>
+      );
+    }
+  }
   
   return elements;
 }

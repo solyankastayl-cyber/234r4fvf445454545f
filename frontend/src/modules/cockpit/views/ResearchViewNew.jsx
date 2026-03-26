@@ -2039,12 +2039,13 @@ const ResearchView = () => {
             // V4 RENDER CONTRACT — pattern_render_contract for clean TA formations
             // CRITICAL: Pass ta_layers and active_range for proper overlay rendering
             data={{
-              pattern_render_contract: patternIndex === 0 
+              pattern_render_contract: patternV2?.renderContract || (patternIndex === 0 
                 ? setupData?.pattern_render_contract 
-                : setupData?.alternative_render_contracts?.[patternIndex - 1],
+                : setupData?.alternative_render_contracts?.[patternIndex - 1]),
               alternative_render_contracts: setupData?.alternative_render_contracts,
               ta_layers: setupData?.ta_layers,
               active_range: setupData?.active_range,
+              v2_triggers: patternV2?.trigger || null,
             }}
             // TA MODE — controls layer visibility (Auto/Classic/Smart/Minimal)
             mode={viewMode}
@@ -2106,7 +2107,7 @@ const ResearchView = () => {
             showPatternOverlay={showPatternOverlay}
             // Pattern View Mode — for zoom to pattern window
             patternViewMode={patternViewMode}
-            patternWindow={setupData?.pattern_render_contract?.window}
+            patternWindow={patternV2?.renderContract?.window || setupData?.pattern_render_contract?.window}
           />
           {loading && (
             <LoadingOverlay>
@@ -2129,14 +2130,18 @@ const ResearchView = () => {
         </ChartSection>
         
         {/* ═══════════════════════════════════════════════════════════════ */}
-        {/* PATTERN HINT CARD — Phase 1: Shows pattern info without geometry */}
-        {/* Lines are disabled on chart; pattern shown via card + marker */}
+        {/* PATTERN V2 STATE CARD — Decision-grade: state + triggers + action */}
+        {/* Shows 1 strongest pattern, its triggers, and its state */}
         {/* ═══════════════════════════════════════════════════════════════ */}
-        <PatternHintCard
-          pattern={setupData?.pattern_render_contract}
-          analysisMode={analysisMode}
-          summary={setupData?.final_analysis?.summary}
-        />
+        {patternV2 ? (
+          <PatternStateCard pattern={patternV2} data-testid="pattern-state-card" />
+        ) : (
+          <PatternHintCard
+            pattern={setupData?.pattern_render_contract}
+            analysisMode={analysisMode}
+            summary={setupData?.final_analysis?.summary}
+          />
+        )}
         
         {/* ═══════════════════════════════════════════════════════════════ */}
         {/* INDICATOR CONTROL BAR — Click to toggle pane visibility */}
