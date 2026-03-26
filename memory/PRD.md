@@ -10,19 +10,27 @@
 - Frontend скомпилирован на localhost:3000
 - Pattern V2 API возвращает данные: BTC (triple_top), ETH (symmetrical_triangle)
 
-### Design Unification Session
-**Проблема:** Три разных дизайна — серый, белый, чёрный фоны. Несогласованность.
+### Pattern Window Validator Session
+**Проблема:** Система рисовала triple_top там где его нет — паттерн был растянут на 80+ баров, не было uptrend'а перед ним, пики были на разных уровнях.
 
-**Решение:** Унификация к двум цветам:
-- Светлые блоки: `#ffffff` (белый)
-- Тёмные блоки: `#0f172a` (чёрный)
+**Решение:** Pattern Window Validator с жёсткими проверками:
+1. Window size — не больше 40 баров для 4H
+2. Structural integrity — правильное количество пиков/впадин
+3. Peak alignment — пики на одном уровне (±3.5%)
+4. Depth check — минимальная глубина 2%
+5. Pre-trend validation — uptrend перед top, downtrend перед bottom
+6. Range conflict — пенализация если паттерн внутри активного range
 
-**Изменённые компоненты:**
-1. `PatternStateCard.jsx` — белый фон, чёрный текст
-2. `TALayersPanel.jsx` — чёрный фон, белый текст
-3. `TAExplorerPanel.jsx` — чёрный фон, белый текст
-4. `DominantCard.jsx` — улучшен контраст
-5. `PatternsList.jsx` — белый текст на тёмном фоне
+**Результат:**
+- BTC: triple_top ОТКЛОНЁН (no_uptrend_before_top: -11.3%)
+- BTC: Теперь показывает rectangle вместо фейкового triple_top
+- ETH: Все паттерны отклонены — показывает NONE (это правильно!)
+
+**Файлы:**
+- `pattern_window_validator.py` — новый валидатор
+- `family_ranking.py` — интеграция валидатора
+- `unified_detector.py` — передача candles/swings в валидатор
+- `horizontal_family.py` — добавлены window и valleys
 
 ## Architecture: Pattern Families System
 
