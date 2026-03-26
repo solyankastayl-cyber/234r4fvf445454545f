@@ -25,6 +25,7 @@ from .family_ranking import FamilyRanking, RankingResult, get_family_ranking
 from .pattern_family_matrix import PatternFamily
 from .pattern_regime_binding import PatternRegimeBinder, get_pattern_regime_binder, RegimeContext
 from .trigger_engine import TriggerEngine, get_trigger_engine, build_triggers
+from .pattern_render_builder import build_render_contract
 
 # Import family detectors
 from .horizontal_family import HorizontalFamilyDetector, get_horizontal_family_detector
@@ -45,6 +46,7 @@ class DetectionResult:
     regime_context: Optional[Dict]  # Market regime info
     actionability: str     # HIGH / MEDIUM / LOW / NONE
     triggers: Optional[Dict]  # What to wait for
+    render_contract: Optional[Dict]  # UNIFIED RENDER for frontend
     
     def to_dict(self) -> Dict:
         return {
@@ -59,6 +61,7 @@ class DetectionResult:
             "regime_context": self.regime_context,
             "actionability": self.actionability,
             "triggers": self.triggers,
+            "render_contract": self.render_contract,
         }
 
 
@@ -173,7 +176,13 @@ class UnifiedPatternDetectorV2:
                 candles
             ).to_dict()
         
-        # 10. BUILD RESULT
+        # 10. BUILD RENDER CONTRACT (unified geometry for frontend)
+        render_contract = None
+        if ranking_result.dominant:
+            dom_data = ranking_result.dominant.pattern_data
+            render_contract = build_render_contract(dom_data, None, candles)
+        
+        # 11. BUILD RESULT
         dominant = None
         if ranking_result.dominant:
             dominant = ranking_result.dominant.to_dict()
@@ -192,6 +201,7 @@ class UnifiedPatternDetectorV2:
             regime_context=regime_context.to_dict(),
             actionability=actionability,
             triggers=triggers,
+            render_contract=render_contract,
         )
     
     def _run_family(
@@ -279,6 +289,7 @@ class UnifiedPatternDetectorV2:
             regime_context=None,
             actionability="NONE",
             triggers=None,
+            render_contract=None,
         )
 
 

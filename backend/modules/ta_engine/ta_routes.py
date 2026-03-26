@@ -26,6 +26,9 @@ from modules.ta_engine.structure import StructureVisualizationBuilder
 from modules.ta_engine.setup.pattern_validator_v2 import get_pattern_validator_v2
 from modules.data.coinbase_auto_init import CoinbaseAutoInit
 
+# NEW: Pattern Families unified detector
+from modules.ta_engine.pattern_families.unified_detector import detect_patterns_v2, get_unified_pattern_detector_v2
+
 router = APIRouter(prefix="/api/ta-engine", tags=["ta-engine"])
 
 _builder = get_hypothesis_builder()
@@ -36,6 +39,7 @@ _render_plan_engine_v2 = get_render_plan_engine_v2()
 _market_state_engine = get_market_state_engine()
 _pattern_figure_registry = get_pattern_figure_registry()
 _structure_viz_builder = StructureVisualizationBuilder()
+_unified_detector = get_unified_pattern_detector_v2()
 
 # Simple cache for MTF responses (60 seconds TTL)
 _mtf_cache: Dict[str, Dict[str, Any]] = {}
@@ -246,6 +250,65 @@ async def get_chart_config():
         "note": "Works for ANY asset available on Coinbase exchange",
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
+
+
+# ═══════════════════════════════════════════════════════════════
+# NEW: PATTERN FAMILIES V2 — Unified Detection with Render Contract
+# ═══════════════════════════════════════════════════════════════
+
+@router.get("/pattern-v2/{symbol}")
+async def get_pattern_v2(
+    symbol: str,
+    timeframe: str = Query("4H", description="Timeframe"),
+):
+    """
+    NEW Pattern Detection V2 using unified family architecture.
+    
+    Returns:
+    - dominant pattern with render_contract
+    - alternatives
+    - triggers (what to wait for)
+    - regime context
+    - confidence state
+    - actionability
+    """
+    try:
+        from modules.ta_engine.setup.market_data_service import MarketDataService
+        
+        # Get candles using existing market data service
+        mds = MarketDataService()
+        
+        # Normalize symbol
+        sym = symbol.upper()
+        if not sym.endswith("USDT"):
+            sym = sym + "USDT"
+        
+        # Get candles
+        candles = mds.get_candles(sym, timeframe.upper(), 200)
+        if not candles:
+            return {"ok": False, "error": "no_candles"}
+        
+        # Run unified detector
+        result = _unified_detector.detect(candles)
+        
+        return {
+            "ok": True,
+            "symbol": symbol.upper(),
+            "timeframe": timeframe.upper(),
+            "current_price": candles[-1].get("close") if candles else None,
+            **result.to_dict(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        
+    except Exception as e:
+        import traceback
+        return {
+            "ok": False,
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+        }
+
+
 
 
 @router.get("/hypothesis/batch")
