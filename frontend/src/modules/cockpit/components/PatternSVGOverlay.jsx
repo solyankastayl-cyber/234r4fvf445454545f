@@ -1,13 +1,16 @@
 /**
- * PatternSVGOverlay.jsx — TA LAYERS BASED RENDERING
+ * PatternSVGOverlay.jsx — VISUAL MODE BASED RENDERING
  * 
- * PRIORITY:
- * 1. active_range (главный слой)
- * 2. strict pattern (double top, H&S)
- * 3. loose pattern (пунктир)
- * 4. structure only
+ * PRINCIPLE: 1 SCREEN = 1 IDEA
  * 
- * Uses ta_layers as source of truth, NOT pattern_render_contract
+ * Visual Mode dictates what CAN be rendered:
+ * - range_only: box + R/S + triggers (NO swings, NO polyline)
+ * - horizontal_pattern: polyline + neckline (NO range, NO swings)
+ * - compression_pattern: trendlines only (NO range, NO swings)
+ * - structure_only: HH/HL/LL only (NO patterns)
+ * - none: nothing
+ * 
+ * Frontend OBEYS visual_mode from backend. No exceptions.
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
@@ -16,42 +19,34 @@ const PatternSVGOverlay = ({ chart, priceSeries, pattern, renderContract, data }
   const [svgElements, setSvgElements] = useState([]);
   
   const buildElements = useCallback(() => {
-    console.log('[PatternSVGOverlay] buildElements called', { 
-      hasChart: !!chart, 
-      hasPriceSeries: !!priceSeries, 
-      hasData: !!data,
-      hasRenderContract: !!renderContract 
-    });
-    
-    if (!chart || !priceSeries) {
-      console.log('[PatternSVGOverlay] Missing chart or priceSeries');
-      return [];
-    }
+    if (!chart || !priceSeries) return [];
     
     try {
       const timeScale = chart.timeScale();
-      if (!timeScale) {
-        console.log('[PatternSVGOverlay] No timeScale');
-        return [];
-      }
+      if (!timeScale) return [];
       
       const visibleRange = timeScale.getVisibleRange();
-      if (!visibleRange) {
-        console.log('[PatternSVGOverlay] No visibleRange');
+      if (!visibleRange) return [];
+      
+      // ═══════════════════════════════════════════════════════════════
+      // VISUAL MODE CHECK — CRITICAL!
+      // ═══════════════════════════════════════════════════════════════
+      const visualMode = data?.visual_mode || renderContract?.visual_mode;
+      const mode = visualMode?.mode || 'structure_only';
+      
+      // Check what we're ALLOWED to render
+      const allowed = visualMode?.allowed || [];
+      const forbidden = visualMode?.forbidden || [];
+      
+      console.log('[PatternSVGOverlay] Visual Mode:', mode, 'Allowed:', allowed, 'Forbidden:', forbidden);
+      
+      // If mode is 'none', render nothing
+      if (mode === 'none') {
         return [];
       }
-      
-      console.log('[PatternSVGOverlay] Data received:', JSON.stringify({
-        data: data ? Object.keys(data) : null,
-        active_range: data?.active_range,
-        ta_layers: data?.ta_layers ? Object.keys(data.ta_layers) : null,
-        scenarios: data?.ta_layers?.scenarios,
-        probability: data?.ta_layers?.probability
-      }, null, 2));
       
       const normalizeTime = (t) => {
         if (!t) return null;
-        // FIX: ms → sec
         return t > 9999999999 ? Math.floor(t / 1000) : t;
       };
       
@@ -73,80 +68,64 @@ const PatternSVGOverlay = ({ chart, priceSeries, pattern, renderContract, data }
       };
       
       // ═══════════════════════════════════════════════════════════════
-      // PRIORITY 0: NEW UNIFIED RENDER CONTRACT (from pattern_families)
+      // RENDER BASED ON VISUAL MODE
+      // ═══════════════════════════════════════════════════════════════
+      
+      // RANGE_ONLY mode
+      if (mode === 'range_only') {
+        const activeRange = data?.active_range || data?.ta_layers?.active_range;
+        const scenarios = data?.ta_layers?.scenarios;
+        const probability = data?.ta_layers?.probability;
+        
+        if (activeRange && activeRange.top && activeRange.bottom) {
+          return renderRange(activeRange, toX, toY, visibleRange, scenarios, probability);
+        }
+        
+        // Fallback: render from renderContract if it's box mode
+        if (renderContract?.box) {
+          return renderUnifiedBox(renderContract, toX, toY, visibleRange);
+        }
+        
+        return [];
+      }
+      
+      // HORIZONTAL_PATTERN mode (double/triple top/bottom)
+      if (mode === 'horizontal_pattern') {
+        if (renderContract?.polyline) {
+          return renderUnifiedPolyline(renderContract, toX, toY);
+        }
+        return [];
+      }
+      
+      // COMPRESSION_PATTERN mode (triangle/wedge/channel)
+      if (mode === 'compression_pattern') {
+        if (renderContract?.lines) {
+          return renderUnifiedTwoLines(renderContract, toX, toY);
+        }
+        return [];
+      }
+      
+      // SWING_PATTERN mode (H&S)
+      if (mode === 'swing_pattern') {
+        if (renderContract?.polyline) {
+          return renderUnifiedHS(renderContract, toX, toY);
+        }
+        return [];
+      }
+      
+      // STRUCTURE_ONLY mode — minimal markers
+      if (mode === 'structure_only') {
+        // Don't render complex patterns, just structure markers if available
+        return renderStructureMarkers(data, toX, toY);
+      }
+      
+      // ═══════════════════════════════════════════════════════════════
+      // FALLBACK: Legacy render (for backwards compatibility)
       // ═══════════════════════════════════════════════════════════════
       if (renderContract && renderContract.type && renderContract.render_mode) {
-        console.log('[PatternSVGOverlay] Using UNIFIED render_contract:', renderContract.type);
-        const patternElements = renderUnifiedContract(renderContract, toX, toY, visibleRange);
+        const elements = renderUnifiedContract(renderContract, toX, toY, visibleRange);
         const triggerElements = renderTriggerLines(data?.v2_triggers, toX, toY, visibleRange);
-        return [...patternElements, ...triggerElements];
-      }
-      
-      // ═══════════════════════════════════════════════════════════════
-      // PRIORITY 1: ACTIVE RANGE (from ta_layers) + BREAKOUT TARGETS
-      // ═══════════════════════════════════════════════════════════════
-      const activeRange = data?.active_range || data?.ta_layers?.active_range;
-      const scenarios = data?.ta_layers?.scenarios;
-      const probability = data?.ta_layers?.probability;
-      
-      if (activeRange && activeRange.top && activeRange.bottom) {
-        return renderRange(activeRange, toX, toY, visibleRange, scenarios, probability);
-      }
-      
-      // ═══════════════════════════════════════════════════════════════
-      // PRIORITY 2: TA_LAYERS PATTERN (strict mode)
-      // ═══════════════════════════════════════════════════════════════
-      const taPattern = data?.ta_layers?.pattern;
-      
-      if (taPattern && taPattern.type && taPattern.confidence > 0.5) {
-        const patternType = (taPattern.type || '').toLowerCase();
-        
-        // Use meta from pattern or renderContract
-        const meta = taPattern.meta || renderContract?.meta || {};
-        
-        if (patternType === 'double_top' || patternType === 'double_bottom') {
-          return renderDoublePattern(patternType, renderContract, meta, toX, toY);
-        }
-        
-        if (patternType.includes('triangle') || patternType.includes('wedge')) {
-          return renderTriangle(meta, toX, toY);
-        }
-      }
-      
-      // ═══════════════════════════════════════════════════════════════
-      // PRIORITY 3: RANGE from regime (if ta_layers says regime=range)
-      // ═══════════════════════════════════════════════════════════════
-      const regime = data?.ta_layers?.regime;
-      
-      if (regime?.regime === 'range' && regime?.range) {
-        return renderRange(regime.range, toX, toY, visibleRange, scenarios, probability);
-      }
-      
-      // ═══════════════════════════════════════════════════════════════
-      // PRIORITY 4: FALLBACK to renderContract (legacy)
-      // ═══════════════════════════════════════════════════════════════
-      if (renderContract && renderContract.display_approved) {
-        const patternType = (renderContract.type || '').toLowerCase();
-        const meta = renderContract.meta || {};
-        
-        if (patternType.includes('range')) {
-          const rangeData = {
-            top: meta.resistance || meta.boundaries?.upper?.y1,
-            bottom: meta.support || meta.boundaries?.lower?.y1,
-            start_time: meta.boundaries?.upper?.x1 || meta.boundaries?.lower?.x1,
-            end_time: visibleRange.to,
-            forward_time: visibleRange.to + (visibleRange.to - visibleRange.from) * 0.3,
-          };
-          return renderRange(rangeData, toX, toY, visibleRange, scenarios, probability);
-        }
-        
-        if (patternType === 'double_top' || patternType === 'double_bottom') {
-          return renderDoublePattern(patternType, renderContract, meta, toX, toY);
-        }
-        
-        if (patternType.includes('triangle') || patternType.includes('wedge')) {
-          return renderTriangle(meta, toX, toY);
-        }
+        return [...elements, ...triggerElements];
       }
       
       return [];
@@ -1044,6 +1023,86 @@ function renderTriggerLines(triggers, toX, toY, visibleRange) {
       );
     }
   }
+  
+  return elements;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// STRUCTURE MARKERS — Minimal swing labels (for structure_only mode)
+// ═══════════════════════════════════════════════════════════════
+function renderStructureMarkers(data, toX, toY) {
+  const elements = [];
+  
+  // Get structure from various sources
+  const swings = data?.swings || data?.ta_layers?.swings || {};
+  const recentHighs = swings.recent_highs || [];
+  const recentLows = swings.recent_lows || [];
+  
+  // Render recent highs (limit to 3)
+  recentHighs.slice(-3).forEach((swing, i) => {
+    const x = toX(swing.timestamp);
+    const y = toY(swing.price);
+    
+    if (x == null || y == null) return;
+    
+    elements.push(
+      <circle
+        key={`high-${i}`}
+        cx={x}
+        cy={y}
+        r={3}
+        fill="#ef4444"
+        opacity={0.7}
+      />
+    );
+    
+    elements.push(
+      <text
+        key={`high-label-${i}`}
+        x={x}
+        y={y - 8}
+        fill="#fca5a5"
+        fontSize="9"
+        fontWeight="600"
+        textAnchor="middle"
+      >
+        {swing.type || 'H'}
+      </text>
+    );
+  });
+  
+  // Render recent lows (limit to 3)
+  recentLows.slice(-3).forEach((swing, i) => {
+    const x = toX(swing.timestamp);
+    const y = toY(swing.price);
+    
+    if (x == null || y == null) return;
+    
+    elements.push(
+      <circle
+        key={`low-${i}`}
+        cx={x}
+        cy={y}
+        r={3}
+        fill="#22c55e"
+        opacity={0.7}
+      />
+    );
+    
+    elements.push(
+      <text
+        key={`low-label-${i}`}
+        x={x}
+        y={y + 14}
+        fill="#86efac"
+        fontSize="9"
+        fontWeight="600"
+        textAnchor="middle"
+      >
+        {swing.type || 'L'}
+      </text>
+    );
+  });
   
   return elements;
 }

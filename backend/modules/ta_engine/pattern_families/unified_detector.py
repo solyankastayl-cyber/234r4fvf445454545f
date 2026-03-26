@@ -26,6 +26,7 @@ from .pattern_family_matrix import PatternFamily, PatternBias
 from .pattern_regime_binding import PatternRegimeBinder, get_pattern_regime_binder, RegimeContext
 from .trigger_engine import TriggerEngine, get_trigger_engine, build_triggers
 from .pattern_render_builder import build_render_contract
+from .visual_mode_resolver import get_visual_mode_resolver, filter_render_for_mode
 
 # Import family detectors
 from .horizontal_family import HorizontalFamilyDetector, get_horizontal_family_detector
@@ -47,6 +48,7 @@ class DetectionResult:
     actionability: str     # HIGH / MEDIUM / LOW / NONE
     triggers: Optional[Dict]  # What to wait for
     render_contract: Optional[Dict]  # UNIFIED RENDER for frontend
+    visual_mode: Optional[Dict] = None  # What frontend is ALLOWED to render
     
     def to_dict(self) -> Dict:
         return {
@@ -62,6 +64,7 @@ class DetectionResult:
             "actionability": self.actionability,
             "triggers": self.triggers,
             "render_contract": self.render_contract,
+            "visual_mode": self.visual_mode,
         }
 
 
@@ -197,11 +200,25 @@ class UnifiedPatternDetectorV2:
         
         # 10. BUILD RENDER CONTRACT (unified geometry for frontend)
         render_contract = None
+        visual_mode = None
+        dominant_type = None
+        
         if ranking_result.dominant:
             dom_data = ranking_result.dominant.pattern_data
-            render_contract = build_render_contract(dom_data, None, candles)
+            dominant_type = dom_data.get("type")
+            raw_render = build_render_contract(dom_data, None, candles)
+            
+            # 11. APPLY VISUAL MODE FILTER (CRITICAL!)
+            # This strips out everything frontend is NOT allowed to render
+            resolver = get_visual_mode_resolver()
+            visual_mode = resolver.get_allowed_elements(dominant_type, confidence_state)
+            render_contract = filter_render_for_mode(raw_render, dominant_type, confidence_state)
+        else:
+            # No dominant - show structure only mode
+            resolver = get_visual_mode_resolver()
+            visual_mode = resolver.get_allowed_elements(None, confidence_state)
         
-        # 11. BUILD RESULT
+        # 12. BUILD RESULT
         dominant = None
         if ranking_result.dominant:
             dominant = ranking_result.dominant.to_dict()
@@ -221,6 +238,7 @@ class UnifiedPatternDetectorV2:
             actionability=actionability,
             triggers=triggers,
             render_contract=render_contract,
+            visual_mode=visual_mode,
         )
     
     def _run_family(

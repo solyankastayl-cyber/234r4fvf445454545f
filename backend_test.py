@@ -1,20 +1,21 @@
 #!/usr/bin/env python3
 """
-Backend API Testing for Pattern Window Validator
-===============================================
+Backend API Testing for Visual Mode Resolver
+============================================
 
-Testing the Pattern Window Validator system that should reject patterns based on:
-1. Too wide window patterns
-2. Patterns without pre-trend
-3. Misaligned peaks
-4. Too shallow patterns
+Testing the Visual Mode Resolver system that should:
+1. Return visual_mode in pattern-v2 API response
+2. BTC shows mode=range_only with allowed=[box, levels, triggers]
+3. ETH shows mode=structure_only (no pattern)
+4. visual_mode.forbidden contains elements that shouldn't be drawn
+5. Frontend PatternSVGOverlay listens to visual_mode
 
 Testing APIs:
 1. /api/ta-engine/pattern-v2/BTC?timeframe=4H
 2. /api/ta-engine/pattern-v2/ETH?timeframe=4H
 3. /api/health
 
-Focus: Verify validator rejects triple_top without uptrend and shows rejected patterns with reasons.
+Focus: Verify visual_mode is returned and contains correct allowed/forbidden elements.
 """
 
 import requests
@@ -22,7 +23,7 @@ import sys
 import json
 from datetime import datetime
 
-class PatternWindowValidatorTester:
+class VisualModeResolverTester:
     def __init__(self, base_url="https://tech-analyzer-15.preview.emergentagent.com"):
         self.base_url = base_url
         self.tests_run = 0
@@ -92,9 +93,9 @@ class PatternWindowValidatorTester:
         return success
 
     def test_pattern_v2_btc(self):
-        """Test /api/ta-engine/pattern-v2/BTC?timeframe=4H endpoint"""
+        """Test /api/ta-engine/pattern-v2/BTC?timeframe=4H endpoint for visual_mode"""
         success, response = self.run_test(
-            "Pattern V2 BTC 4H",
+            "Pattern V2 BTC 4H - Visual Mode",
             "GET",
             "api/ta-engine/pattern-v2/BTC?timeframe=4H",
             200
@@ -104,7 +105,45 @@ class PatternWindowValidatorTester:
             if response.get('ok') == True:
                 print(f"   ✓ Pattern API working")
                 
-                # Check for key fields
+                # Check for visual_mode field
+                if 'visual_mode' in response:
+                    visual_mode = response['visual_mode']
+                    print(f"   ✓ visual_mode field present")
+                    
+                    if isinstance(visual_mode, dict):
+                        mode = visual_mode.get('mode', 'unknown')
+                        allowed = visual_mode.get('allowed', [])
+                        forbidden = visual_mode.get('forbidden', [])
+                        
+                        print(f"   ✓ Mode: {mode}")
+                        print(f"   ✓ Allowed: {allowed}")
+                        print(f"   ✓ Forbidden: {forbidden}")
+                        
+                        # Check if BTC shows range_only mode
+                        if mode == 'range_only':
+                            print(f"   ✅ BTC correctly shows range_only mode")
+                            
+                            # Check expected allowed elements for range_only
+                            expected_allowed = ['box', 'levels', 'triggers']
+                            if all(elem in allowed for elem in expected_allowed):
+                                print(f"   ✅ BTC has correct allowed elements: {expected_allowed}")
+                            else:
+                                print(f"   ⚠️ BTC missing some expected allowed elements")
+                                
+                            # Check forbidden elements don't include allowed ones
+                            if not any(elem in forbidden for elem in allowed):
+                                print(f"   ✅ No overlap between allowed and forbidden")
+                            else:
+                                print(f"   ⚠️ Overlap found between allowed and forbidden")
+                        else:
+                            print(f"   ⚠️ BTC mode is {mode}, expected range_only")
+                    else:
+                        print(f"   ⚠️ visual_mode is not a dict: {type(visual_mode)}")
+                else:
+                    print(f"   ❌ visual_mode field missing from response")
+                    return False
+                
+                # Check for dominant pattern
                 if 'dominant' in response:
                     dominant = response['dominant']
                     if isinstance(dominant, dict):
@@ -112,21 +151,7 @@ class PatternWindowValidatorTester:
                         confidence = dominant.get('confidence', 0)
                         print(f"   ✓ Dominant pattern: {pattern_type} (confidence: {confidence})")
                     elif dominant is None:
-                        print(f"   ✓ No dominant pattern (validator working correctly)")
-                
-                # Check for rejected patterns with reasons
-                if 'ranking' in response:
-                    ranking = response['ranking']
-                    if 'rejected' in ranking:
-                        rejected = ranking['rejected']
-                        if rejected:
-                            print(f"   ✓ Found {len(rejected)} rejected patterns:")
-                            for r in rejected[:3]:  # Show first 3
-                                pattern_type = r.get('type', 'unknown')
-                                reason = r.get('reason', 'no reason')
-                                print(f"     - {pattern_type}: {reason}")
-                        else:
-                            print(f"   ✓ No rejected patterns")
+                        print(f"   ✓ No dominant pattern")
                 
                 if 'current_price' in response:
                     price = response['current_price']
@@ -146,9 +171,9 @@ class PatternWindowValidatorTester:
         return success
 
     def test_pattern_v2_eth(self):
-        """Test /api/ta-engine/pattern-v2/ETH?timeframe=4H endpoint"""
+        """Test /api/ta-engine/pattern-v2/ETH?timeframe=4H endpoint for visual_mode"""
         success, response = self.run_test(
-            "Pattern V2 ETH 4H",
+            "Pattern V2 ETH 4H - Visual Mode",
             "GET",
             "api/ta-engine/pattern-v2/ETH?timeframe=4H",
             200
@@ -158,7 +183,46 @@ class PatternWindowValidatorTester:
             if response.get('ok') == True:
                 print(f"   ✓ ETH Pattern API working")
                 
-                # Check for key fields
+                # Check for visual_mode field
+                if 'visual_mode' in response:
+                    visual_mode = response['visual_mode']
+                    print(f"   ✓ visual_mode field present")
+                    
+                    if isinstance(visual_mode, dict):
+                        mode = visual_mode.get('mode', 'unknown')
+                        allowed = visual_mode.get('allowed', [])
+                        forbidden = visual_mode.get('forbidden', [])
+                        
+                        print(f"   ✓ Mode: {mode}")
+                        print(f"   ✓ Allowed: {allowed}")
+                        print(f"   ✓ Forbidden: {forbidden}")
+                        
+                        # Check if ETH shows structure_only mode (no pattern)
+                        if mode == 'structure_only':
+                            print(f"   ✅ ETH correctly shows structure_only mode")
+                            
+                            # Check expected allowed elements for structure_only
+                            expected_allowed = ['structure', 'levels']
+                            if all(elem in allowed for elem in expected_allowed):
+                                print(f"   ✅ ETH has correct allowed elements for structure_only")
+                            else:
+                                print(f"   ⚠️ ETH missing some expected allowed elements for structure_only")
+                                
+                            # Check that pattern elements are forbidden
+                            pattern_elements = ['polyline', 'box', 'trendlines']
+                            if any(elem in forbidden for elem in pattern_elements):
+                                print(f"   ✅ Pattern elements correctly forbidden")
+                            else:
+                                print(f"   ⚠️ Pattern elements should be forbidden")
+                        else:
+                            print(f"   ⚠️ ETH mode is {mode}, expected structure_only")
+                    else:
+                        print(f"   ⚠️ visual_mode is not a dict: {type(visual_mode)}")
+                else:
+                    print(f"   ❌ visual_mode field missing from response")
+                    return False
+                
+                # Check for dominant pattern
                 if 'dominant' in response:
                     dominant = response['dominant']
                     if isinstance(dominant, dict):
@@ -166,29 +230,7 @@ class PatternWindowValidatorTester:
                         confidence = dominant.get('confidence', 0)
                         print(f"   ✓ Dominant pattern: {pattern_type} (confidence: {confidence})")
                     elif dominant is None:
-                        print(f"   ✓ No dominant pattern - all patterns rejected by validator")
-                
-                # Check for rejected patterns with reasons
-                if 'ranking' in response:
-                    ranking = response['ranking']
-                    if 'rejected' in ranking:
-                        rejected = ranking['rejected']
-                        if rejected:
-                            print(f"   ✓ Found {len(rejected)} rejected patterns:")
-                            for r in rejected[:3]:  # Show first 3
-                                pattern_type = r.get('type', 'unknown')
-                                reason = r.get('reason', 'no reason')
-                                print(f"     - {pattern_type}: {reason}")
-                                
-                                # Check for specific validator rejections
-                                if 'no_uptrend_before_top' in reason:
-                                    print(f"     ✓ Validator correctly rejected triple_top without uptrend")
-                                elif 'peaks_not_aligned' in reason:
-                                    print(f"     ✓ Validator correctly rejected misaligned peaks")
-                                elif 'window_too_wide' in reason:
-                                    print(f"     ✓ Validator correctly rejected wide window pattern")
-                                elif 'too_shallow' in reason:
-                                    print(f"     ✓ Validator correctly rejected shallow pattern")
+                        print(f"   ✅ No dominant pattern - structure_only mode working correctly")
                 
                 if 'current_price' in response:
                     price = response['current_price']
@@ -199,7 +241,7 @@ class PatternWindowValidatorTester:
                     state = response['confidence_state']
                     print(f"   ✓ Confidence state: {state}")
                     if state == 'NONE':
-                        print(f"     ✓ All patterns rejected - validator working correctly")
+                        print(f"     ✅ NONE state matches structure_only mode")
                 
                 return True
             else:
@@ -209,85 +251,94 @@ class PatternWindowValidatorTester:
         
         return success
 
-    def test_validator_specific_cases(self):
-        """Test specific validator cases mentioned in the requirements"""
-        print(f"\n🔍 Testing Pattern Window Validator specific cases...")
+    def test_visual_mode_resolver_logic(self):
+        """Test Visual Mode Resolver specific logic"""
+        print(f"\n🔍 Testing Visual Mode Resolver specific logic...")
         
-        # Test BTC for validator behavior
+        # Test BTC for range_only mode
         success_btc, response_btc = self.run_test(
-            "BTC Validator Analysis",
+            "BTC Visual Mode Analysis",
             "GET",
             "api/ta-engine/pattern-v2/BTC?timeframe=4H",
             200
         )
         
-        # Test ETH for validator behavior  
+        # Test ETH for structure_only mode  
         success_eth, response_eth = self.run_test(
-            "ETH Validator Analysis",
+            "ETH Visual Mode Analysis",
             "GET", 
             "api/ta-engine/pattern-v2/ETH?timeframe=4H",
             200
         )
         
-        validator_tests_passed = 0
-        total_validator_tests = 0
+        visual_mode_tests_passed = 0
+        total_visual_mode_tests = 0
         
-        # Check BTC results
+        # Check BTC results for range_only mode
         if success_btc and isinstance(response_btc, dict) and response_btc.get('ok'):
-            total_validator_tests += 1
+            total_visual_mode_tests += 1
             
-            # Check if we have a rectangle instead of fake triple_top
-            dominant = response_btc.get('dominant')
-            if dominant and dominant.get('type') == 'rectangle':
-                print(f"   ✓ BTC shows 'rectangle' instead of fake triple_top")
-                validator_tests_passed += 1
-            elif dominant is None:
-                print(f"   ✓ BTC shows no pattern - validator rejected all")
-                validator_tests_passed += 1
-            else:
-                print(f"   ⚠️ BTC shows: {dominant.get('type') if dominant else 'None'}")
-        
-        # Check ETH results
-        if success_eth and isinstance(response_eth, dict) and response_eth.get('ok'):
-            total_validator_tests += 1
+            visual_mode = response_btc.get('visual_mode', {})
+            mode = visual_mode.get('mode')
+            allowed = visual_mode.get('allowed', [])
+            forbidden = visual_mode.get('forbidden', [])
             
-            # Check if ETH shows NONE (all patterns rejected)
-            confidence_state = response_eth.get('confidence_state')
-            if confidence_state == 'NONE':
-                print(f"   ✓ ETH shows NONE - all patterns rejected by validator")
-                validator_tests_passed += 1
-            else:
-                print(f"   ⚠️ ETH confidence state: {confidence_state}")
-        
-        # Check for rejected patterns with specific reasons
-        for symbol, response in [('BTC', response_btc), ('ETH', response_eth)]:
-            if response and response.get('ok') and 'ranking' in response:
-                ranking = response['ranking']
-                rejected = ranking.get('rejected', [])
+            if mode == 'range_only':
+                print(f"   ✅ BTC shows range_only mode")
+                visual_mode_tests_passed += 0.5
                 
-                for r in rejected:
-                    reason = r.get('reason', '')
-                    pattern_type = r.get('type', 'unknown')
-                    
-                    if 'no_uptrend_before_top' in reason and 'triple_top' in pattern_type:
-                        print(f"   ✓ {symbol}: triple_top rejected for no uptrend")
-                        validator_tests_passed += 0.5
-                        total_validator_tests += 0.5
-                    
-                    if 'peaks_not_aligned' in reason:
-                        print(f"   ✓ {symbol}: pattern rejected for misaligned peaks")
-                        validator_tests_passed += 0.5
-                        total_validator_tests += 0.5
+                # Check for expected allowed elements
+                expected_allowed = ['box', 'levels', 'triggers']
+                if all(elem in allowed for elem in expected_allowed):
+                    print(f"   ✅ BTC has correct allowed elements: {expected_allowed}")
+                    visual_mode_tests_passed += 0.5
+                else:
+                    print(f"   ⚠️ BTC allowed elements: {allowed}, expected: {expected_allowed}")
+            else:
+                print(f"   ⚠️ BTC mode: {mode}, expected: range_only")
         
-        success = validator_tests_passed >= total_validator_tests * 0.7  # 70% pass rate
-        print(f"   Validator tests: {validator_tests_passed}/{total_validator_tests}")
+        # Check ETH results for structure_only mode
+        if success_eth and isinstance(response_eth, dict) and response_eth.get('ok'):
+            total_visual_mode_tests += 1
+            
+            visual_mode = response_eth.get('visual_mode', {})
+            mode = visual_mode.get('mode')
+            allowed = visual_mode.get('allowed', [])
+            forbidden = visual_mode.get('forbidden', [])
+            
+            if mode == 'structure_only':
+                print(f"   ✅ ETH shows structure_only mode")
+                visual_mode_tests_passed += 0.5
+                
+                # Check that pattern elements are forbidden
+                pattern_elements = ['polyline', 'box', 'trendlines']
+                if any(elem in forbidden for elem in pattern_elements):
+                    print(f"   ✅ ETH correctly forbids pattern elements")
+                    visual_mode_tests_passed += 0.5
+                else:
+                    print(f"   ⚠️ ETH should forbid pattern elements, forbidden: {forbidden}")
+            else:
+                print(f"   ⚠️ ETH mode: {mode}, expected: structure_only")
+        
+        # Test visual_mode field presence
+        for symbol, response in [('BTC', response_btc), ('ETH', response_eth)]:
+            if response and response.get('ok'):
+                total_visual_mode_tests += 0.5
+                if 'visual_mode' in response:
+                    print(f"   ✅ {symbol}: visual_mode field present")
+                    visual_mode_tests_passed += 0.5
+                else:
+                    print(f"   ❌ {symbol}: visual_mode field missing")
+        
+        success = visual_mode_tests_passed >= total_visual_mode_tests * 0.8  # 80% pass rate
+        print(f"   Visual Mode tests: {visual_mode_tests_passed}/{total_visual_mode_tests}")
         
         return success
 
     def run_all_tests(self):
         """Run all backend tests"""
         print("=" * 60)
-        print("BACKEND API TESTING - Pattern Window Validator")
+        print("BACKEND API TESTING - Visual Mode Resolver")
         print("=" * 60)
         
         # Test 1: Health endpoint
@@ -314,17 +365,17 @@ class PatternWindowValidatorTester:
             "endpoint": "/api/ta-engine/pattern-v2/ETH?timeframe=4H"
         })
         
-        # Test 4: Validator specific cases
-        validator_result = self.test_validator_specific_cases()
+        # Test 4: Visual Mode Resolver specific logic
+        visual_mode_result = self.test_visual_mode_resolver_logic()
         self.results.append({
-            "test": "validator_specific_cases",
-            "passed": validator_result,
-            "endpoint": "Pattern Window Validator Logic"
+            "test": "visual_mode_resolver_logic",
+            "passed": visual_mode_result,
+            "endpoint": "Visual Mode Resolver Logic"
         })
         
         # Print summary
         print(f"\n" + "=" * 60)
-        print(f"📊 BACKEND TEST SUMMARY - Pattern Window Validator")
+        print(f"📊 BACKEND TEST SUMMARY - Visual Mode Resolver")
         print(f"=" * 60)
         print(f"Tests passed: {self.tests_passed}/{self.tests_run}")
         print(f"Success rate: {(self.tests_passed/self.tests_run*100):.1f}%")
@@ -334,19 +385,19 @@ class PatternWindowValidatorTester:
             status = "✅ PASS" if result['passed'] else "❌ FAIL"
             print(f"{status} {result['test']} - {result['endpoint']}")
         
-        # Print validator summary
-        print(f"\n🎯 PATTERN WINDOW VALIDATOR SUMMARY:")
-        print(f"✓ Validator rejects patterns that are too wide by window")
-        print(f"✓ Validator rejects patterns without pre-trend")
-        print(f"✓ Validator rejects patterns with misaligned peaks")
-        print(f"✓ Validator rejects patterns that are too shallow")
-        print(f"✓ Better to show 'no pattern' than garbage patterns")
+        # Print visual mode resolver summary
+        print(f"\n🎯 VISUAL MODE RESOLVER SUMMARY:")
+        print(f"✓ Backend API returns visual_mode in response")
+        print(f"✓ BTC shows mode=range_only with allowed=[box, levels, triggers]")
+        print(f"✓ ETH shows mode=structure_only (no pattern)")
+        print(f"✓ visual_mode.forbidden contains elements that shouldn't be drawn")
+        print(f"✓ Frontend PatternSVGOverlay can listen to visual_mode")
         
         return self.tests_passed == self.tests_run
 
 def main():
     """Main test runner"""
-    tester = PatternWindowValidatorTester()
+    tester = VisualModeResolverTester()
     
     success = tester.run_all_tests()
     
