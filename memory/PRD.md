@@ -10,6 +10,20 @@
 - Frontend скомпилирован на localhost:3000
 - Pattern V2 API возвращает данные: BTC (triple_top), ETH (symmetrical_triangle)
 
+### Design Unification Session
+**Проблема:** Три разных дизайна — серый, белый, чёрный фоны. Несогласованность.
+
+**Решение:** Унификация к двум цветам:
+- Светлые блоки: `#ffffff` (белый)
+- Тёмные блоки: `#0f172a` (чёрный)
+
+**Изменённые компоненты:**
+1. `PatternStateCard.jsx` — белый фон, чёрный текст
+2. `TALayersPanel.jsx` — чёрный фон, белый текст
+3. `TAExplorerPanel.jsx` — чёрный фон, белый текст
+4. `DominantCard.jsx` — улучшен контраст
+5. `PatternsList.jsx` — белый текст на тёмном фоне
+
 ## Architecture: Pattern Families System
 
 ### Core Components Created
